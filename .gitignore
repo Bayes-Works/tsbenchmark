@@ -14,4 +14,5 @@ results/**
 workflow/**
 
 # Exception
+!data/anomaly_info/
 !data/anomaly_info/anomaly_info.json
