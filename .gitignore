@@ -1,0 +1,17 @@
+*.DS_Store
+*.vscode
+*.json
+*.csv
+*.ipynb
+*.pdf
+*.pgf
+*.png
+**/__pycache__/
+*.egg-info/
+
+data/**
+results/**
+workflow/**
+
+# Exception
+!data/anomaly_info/anomaly_info.json
