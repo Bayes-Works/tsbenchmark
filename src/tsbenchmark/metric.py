@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from typing import Optional
 
 def FalseRate(
     anomaly_score,
@@ -18,10 +19,11 @@ def FalseRate(
 def ProbTimeDetection(
     anomaly_score,
     anomaly_info,
+    max_anom_detect_time: Optional[pd.Timedelta] = None,
 ):
     prob = {}
     time = {}
-    num_anomaly_per_magnitude = anomaly_info["num_anomaly_per_magnitude"] = anomaly_info["num_anomaly_per_magnitude"]
+
     for ts in anomaly_score:
         prob[ts] = {}
         time[ts] = {}
@@ -30,27 +32,27 @@ def ProbTimeDetection(
             prob[ts][anomaly_type] = {}
             time[ts][anomaly_type] = {}
 
-            for _, key in enumerate(anomaly_info["anomaly_magnitude"][anomaly_type]):
+            for key in anomaly_score[ts][anomaly_type]:
                 count_anomaly = 0
+                num_anomaly_per_magnitude = len(anomaly_score[ts][anomaly_type][key])
                 sum_time_detection = pd.Timedelta(0)
-                # np.random.seed(anomaly_info["random_seed"])
-                # ts_len = len(anomaly_score[ts][anomaly_type][str(key)][0].index)
-                # anom_index = np.random.randint(0, ts_len, size=num_anomaly)
-                ts_len = len(anomaly_score[ts][anomaly_type][str(key)][0].index)
-                anom_index = np.array(anomaly_info["random_number"][:num_anomaly_per_magnitude])
-                anom_index = (anom_index * ts_len).astype(int).tolist()
                 
-                for j, df_score in anomaly_score[ts][anomaly_type][str(key)].items():
-                    _anomaly_time = df_score.index[anom_index[j]]
-                    after_anomaly = df_score.loc[df_score.index >= _anomaly_time, df_score.columns[0]]
+                for j, df_score in anomaly_score[ts][anomaly_type][key].items():
+                    _anomaly_time = anomaly_info[ts][anomaly_type][key][j]
+                    _anomaly_time_end = _anomaly_time + max_anom_detect_time
+                    after_anomaly = df_score.loc[
+                        (df_score.index >= _anomaly_time) & (df_score.index <= _anomaly_time_end),
+                        df_score.columns[0]
+                    ]
+
                     if after_anomaly.any():
                         count_anomaly += 1
                         first_dec_time = after_anomaly.index[after_anomaly.values][0]
                         _time_to_detection = first_dec_time - _anomaly_time
                         sum_time_detection += _time_to_detection
 
-                prob[ts][anomaly_type][str(key)] = count_anomaly/num_anomaly_per_magnitude
-                time[ts][anomaly_type][str(key)] = sum_time_detection/num_anomaly_per_magnitude
+                prob[ts][anomaly_type][key] = count_anomaly/num_anomaly_per_magnitude
+                time[ts][anomaly_type][key] = sum_time_detection/num_anomaly_per_magnitude
         
     return prob, time
                 

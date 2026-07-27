@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=75.5.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tsbenchmark"
+version = "0.0.1"
+description = "Timeseries changepoint detection benchmark."
+license = { text = "MIT" }
+requires-python = ">=3.10, <3.13"
+
+authors = [
+  { name = "Van-Dai Vuong, Zhanwen Xin, David Wardan, and James-A. Goulet", email = "james.goulet@polymtl.ca" }
+]
+
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent"
+]
+
+dependencies = [
+  "matplotlib~=3.9.2",
+  "pycanari",
+  "numpy==1.26.0",
+  "pandas~=2.2.3",
+  "tqdm==4.66.1",
+  "fire==0.5.0",
+  "optuna==4.2.0",
+  "ray[tune]==2.49.2",
+  "salesforce-merlion[deep-learning]==2.0.4",
+  "tranad @ git+https://github.com/van-dai-vuong/tranad.git",
+]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.urls]
+Repository = "https://github.com/Bayes-Works/tsbenchmark"
+
+
