@@ -1,6 +1,8 @@
 from typing import Optional
 import pandas as pd
 import numpy as np
+from prophet import Prophet
+import matplotlib.pyplot as plt
 
 import pandas as pd
 import os
@@ -70,3 +72,91 @@ def AddToCsv(df, values_path: str, datetimes_path: str, rewrite: bool = False):
         print(f"Added '{col_name}' index to '{datetimes_path}'.")
     else:
         print(f"Column '{col_name}' already in '{datetimes_path}'. Skipped.")
+
+def delete_column(values_path: str, datetimes_path: str, column_name: str):
+    for path in (values_path, datetimes_path):
+        df = pd.read_csv(path)
+        if column_name in df.columns:
+            df = df.drop(columns=column_name)
+            df.to_csv(path, index=False)
+            print(f"Removed '{column_name}' from {path}")
+        else:
+            print(f"'{column_name}' not found in {path}")
+
+def detrend_prophet(df, standardize=True, **prophet_kwargs):
+    """Detrend a single-column time series with Prophet, then standardize.
+
+    Input:  df — DataFrame with a date-like index and one value column.
+    Output: df_detrend — detrended (and optionally standardized) DataFrame,
+            with NaNs preserved where the original series was missing.
+    """
+    # Reshape into Prophet's expected ds / y format
+    df_detrend = df.copy()
+    df_detrend = df_detrend.reset_index()
+    df_detrend.columns = ["ds", "y"]
+    df_detrend["ds"] = pd.to_datetime(df_detrend["ds"])
+    df_detrend.index = df_detrend["ds"]
+
+    # Remember where the real NaNs are, then interpolate so Prophet can fit
+    nan_idx = np.where(df_detrend["y"].isna())[0]
+    df_detrend["y"] = df_detrend["y"].interpolate()
+
+    # Fit Prophet and extract the trend component
+    prophet_model = Prophet(**prophet_kwargs)
+    prophet_model.fit(df_detrend)
+    prophet_results = prophet_model.predict(df_detrend[["ds"]])
+    trend = prophet_results["trend"]
+
+    # Remove the trend and restore original NaNs
+    detrend_data = df_detrend["y"].values - trend.values
+    detrend_data[nan_idx] = np.nan
+    df_detrend["y"] = detrend_data
+
+    # Clean up index / helper column
+    df_detrend = df_detrend.drop(columns=["ds"], errors="ignore")
+    df_detrend.index.name = None
+
+    # Standardize
+    if standardize:
+        df_detrend = (df_detrend - df_detrend.mean()) / df_detrend.std()
+
+    return df_detrend, trend
+
+def plot_decomposition(time, original, detrend, trend, figsize=(12, 10)):
+    """Plot the detrend decomposition in three stacked panels.
+
+    Inputs:
+        original — original data values (array-like or DataFrame/Series)
+        time     — x-axis values (the datetime index)
+        detrend  — detrended data values
+        trend    — the extracted trend component
+    """
+    fig, axes = plt.subplots(3, 1, figsize=figsize, sharex=True)
+
+    axes[0].plot(time, original)
+    axes[0].set_ylabel("original data")
+
+    axes[1].plot(time, trend)
+    axes[1].set_ylabel("trend")
+
+    axes[2].plot(time, detrend)
+    axes[2].set_ylabel("detrended data")
+
+    fig.tight_layout()
+    return fig, axes
+
+def min_max_scale(df):
+    """Min-max scale each column to [-1, 1]."""
+    lo, hi = df.min(), df.max()
+    return 2 * (df - lo) / (hi - lo) - 1
+
+def remove_ma(df, window):
+    na_mask = df.isna()
+    filled = df.interpolate(method='linear', limit_direction='both')
+    # ma = filled.rolling(window).mean()
+    # detrended = (filled - ma).mask(na_mask)
+    # return detrended
+    ma = filled.rolling(window, center=True).mean().fillna(0)
+    detrended = (filled - ma).mask(na_mask)
+    return detrended
+    
