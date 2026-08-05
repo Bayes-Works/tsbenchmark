@@ -86,9 +86,16 @@ def delete_column(values_path: str, datetimes_path: str, column_name: str):
 def detrend_prophet(df, standardize=True, **prophet_kwargs):
     """Detrend a single-column time series with Prophet, then standardize.
 
+    Prophet is fit ONLY on observed rows, so no gap-filling guess biases the
+    trend. Missing points are then filled from Prophet's own yhat
+    (trend + seasonality), which is trend-consistent by construction.
+
     Input:  df — DataFrame with a date-like index and one value column.
-    Output: df_detrend — detrended (and optionally standardized) DataFrame,
-            with NaNs preserved where the original series was missing.
+    Output: df_detrend — detrended (and optionally standardized) DataFrame.
+                         Gaps filled from yhat when fill_missing=True,
+                         left as NaN when False.
+            trend    — Prophet trend component (all dates).
+            seasonal — Prophet total seasonal component (additive_terms).
     """
     # Reshape into Prophet's expected ds / y format
     df_detrend = df.copy()
@@ -97,19 +104,20 @@ def detrend_prophet(df, standardize=True, **prophet_kwargs):
     df_detrend["ds"] = pd.to_datetime(df_detrend["ds"])
     df_detrend.index = df_detrend["ds"]
 
-    # Remember where the real NaNs are, then interpolate so Prophet can fit
-    nan_idx = np.where(df_detrend["y"].isna())[0]
-    df_detrend["y"] = df_detrend["y"].interpolate()
+    # Remember where the real NaNs are (no interpolation anywhere)
+    missing = df_detrend["y"].isna().values
 
-    # Fit Prophet and extract the trend component
+    # Fit Prophet on observed rows only
     prophet_model = Prophet(**prophet_kwargs)
-    prophet_model.fit(df_detrend)
-    prophet_results = prophet_model.predict(df_detrend[["ds"]])
-    trend = prophet_results["trend"]
+    prophet_model.fit(df_detrend.loc[~missing, ["ds", "y"]])
 
-    # Remove the trend and restore original NaNs
-    detrend_data = df_detrend["y"].values - trend.values
-    detrend_data[nan_idx] = np.nan
+    # Predict on ALL dates to get trend / seasonal / yhat everywhere
+    prophet_results = prophet_model.predict(df_detrend[["ds"]])
+    trend    = prophet_results["trend"]
+    seasonal = prophet_results["additive_terms"]
+
+    # Remove the trend; optionally restore NaNs
+    detrend_data = df_detrend["y"].values.copy() - trend.values
     df_detrend["y"] = detrend_data
 
     # Clean up index / helper column
