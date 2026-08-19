@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 from prophet import Prophet
 import matplotlib.pyplot as plt
-
 import pandas as pd
 import os
 
@@ -124,11 +123,12 @@ def detrend_prophet(df, standardize=True, **prophet_kwargs):
     df_detrend = df_detrend.drop(columns=["ds"], errors="ignore")
     df_detrend.index.name = None
 
+    scale_std = df_detrend.std()
     # Standardize
     if standardize:
-        df_detrend = (df_detrend - df_detrend.mean()) / df_detrend.std()
+        df_detrend = (df_detrend - df_detrend.mean()) / scale_std
 
-    return df_detrend, trend
+    return df_detrend, trend, scale_std
 
 def plot_decomposition(time, original, detrend, trend, figsize=(12, 10)):
     """Plot the detrend decomposition in three stacked panels.
