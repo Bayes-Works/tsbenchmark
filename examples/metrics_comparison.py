@@ -1,13 +1,9 @@
 import os
-import sys
+from statistics import NormalDist
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from src.tsbenchmark.detector.dummy_detectors import random_detector
-from src.tsbenchmark.detector.gaussian_point_detector import GaussianPointDetector
 
 # Settings
 DATA_PATH = os.path.join(
@@ -36,6 +32,19 @@ df["y_anomaly"] = y_anomaly
 df["anomaly"] = (np.arange(len(y)) >= ANOMALY_START).astype(int)
 
 
+# Dummy detector: fit a Gaussian to y_{1:t-1}, alarm if y_t is outside its
+# `confidence` interval
+def gaussian_point_detector(y, confidence=0.95, min_history=2):
+    z = NormalDist().inv_cdf((1 + confidence) / 2)
+    alarms = np.zeros(len(y), dtype=int)
+    for t in range(min_history, len(y)):
+        mu = np.mean(y[:t])
+        sigma = np.std(y[:t], ddof=1)
+        if abs(y[t] - mu) > z * sigma:
+            alarms[t] = 1
+    return alarms
+
+
 def confusion(labels, alarms):
     tp = np.sum((alarms == 1) & (labels == 1))
     fp = np.sum((alarms == 1) & (labels == 0))
@@ -46,6 +55,12 @@ def confusion(labels, alarms):
 
 def trapezoid(x, y):
     return float(np.sum(np.diff(x) * (y[1:] + y[:-1]) / 2))
+
+
+# Random detector: alarm with probability alarm_prob, independent of the data
+# and of the labels
+def random_detector(n, alarm_prob, rng):
+    return (rng.random(n) < alarm_prob).astype(int)
 
 
 def roc_pr_curves(labels, alarm_sets):
@@ -73,21 +88,15 @@ def roc_pr_curves(labels, alarm_sets):
     return fpr, tpr, recall, precision, trapezoid(fpr, tpr), trapezoid(recall, precision)
 
 
-detector = GaussianPointDetector()
-data = pd.Series(y_anomaly, index=df["date"])
-detector_params = {"ddof": 1}
-
-df["alarm"] = detector.detect(
-    data, initial_len=WARMUP, threshold_param=CONFIDENCE, params=detector_params
-).to_numpy()
+df["alarm"] = gaussian_point_detector(
+    y_anomaly, confidence=CONFIDENCE, min_history=WARMUP
+)
 alarm_idx = np.flatnonzero(df["alarm"])
 
 # Sweep confidence levels; evaluate only after the warm-up
 labels = df["anomaly"].to_numpy()[WARMUP:]
 gaussian_alarms = [
-    detector.detect(
-        data, initial_len=WARMUP, threshold_param=conf, params=detector_params
-    ).to_numpy()[WARMUP:]
+    gaussian_point_detector(y_anomaly, confidence=conf, min_history=WARMUP)[WARMUP:]
     for conf in CONFIDENCE_GRID
 ]
 fpr, tpr, recall, precision, auc_roc, auc_pr = roc_pr_curves(labels, gaussian_alarms)
