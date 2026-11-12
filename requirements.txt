@@ -1,6 +1,9 @@
-matplotlib~=3.9.2
+matplotlib
 numpy~=2.1.3
 pandas~=2.2.3
 fire~=0.5.0
 prophet~=1.3.0
-pycanari~=0.2.4
+pycanari~=0.2.5
+chronos-forecasting>=2.0
+granite-tsfm>=0.3.12
+tirex-ts
