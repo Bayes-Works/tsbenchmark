@@ -13,7 +13,10 @@ sys.path[:0] = [ROOT_DIR, os.path.join(ROOT_DIR, "src")]
 from src.tsbenchmark.detector.gaussian_point_detector import GaussianPointDetector
 
 DATA_DIR = os.path.join(ROOT_DIR, "data")
-MAGNITUDES = np.round(np.arange(1, 11) * 0.01, 2)  # normalized: 0.1, 0.2, ..., 1.0
+# MAGNITUDES = np.round(np.arange(1, 11) * 0.01, 2)  # normalized: 0.01, 0.02, ..., 0.10
+MAGNITUDES = np.round(np.arange(1, 11) * 0.1, 2)  # normalized: 0.01, 0.02, ..., 0.10
+ANM_START_RANGE = [0.4, 0.9]
+print(MAGNITUDES)
 NUM_TS_PER_MAG = 10
 NUM_PLOT_PER_MAG = 3
 
@@ -30,16 +33,73 @@ num_steps = len(y_base)
 # Anomaly info: first NUM_TS_PER_MAG start ratios of each selected magnitude
 with open(os.path.join(DATA_DIR, "anomaly_info", "single_anm_info.json")) as f:
     anm_info = pd.DataFrame(json.load(f))
-anm_info = (
-    anm_info[np.isin(anm_info["anm_mag_norm"].round(2), MAGNITUDES)]
-    .groupby("anm_mag_norm", sort=True)
-    .head(NUM_TS_PER_MAG)
-    .reset_index(drop=True)
-)
+print(anm_info)
+# Print the range of the anm_start_ratio
+print(f"Range of anm_start_ratio: {anm_info['anm_start_ratio'].min()} to {anm_info['anm_start_ratio'].max()}")
 
-# Denormalize: a trend of m per step on (y - mean) / std is m * std per step on y
-anm_info["anm_mag"] = anm_info["anm_mag_norm"] * y_base.std()
-anm_info["anm_start"] = (anm_info["anm_start_ratio"] * num_steps).astype(int)
+###########################################################
+################ Showcase: range selection ################
+###########################################################
+# Only get the anomaly with start ratio ranging from ANM_START_RANGE
+anm_info_range = anm_info[
+    (anm_info["anm_start_ratio"] >= ANM_START_RANGE[0]) &
+    (anm_info["anm_start_ratio"] <= ANM_START_RANGE[1])
+].reset_index(drop=True)
+print(anm_info_range)
+print(f"Range of anm_start_ratio after dropout: {anm_info_range['anm_start_ratio'].min()} to {anm_info_range['anm_start_ratio'].max()}")
+
+# ###############################################################################
+# ################## Show all the magnitudes ####################################
+# ###############################################################################
+# mag_all = anm_info["anm_mag_norm"].round(2).unique()
+# print(f"All the magnitudes: {mag_all}")
+
+# ###############################################################################
+# ## Get all the anm_start_ratio with the magnitude of 0.1 ######################
+# ###############################################################################
+# mag=0.1
+# anm_info_mag = anm_info[anm_info["anm_mag_norm"].round(2) == mag]
+# print(anm_info_mag)
+
+# ###############################################################################
+# # Get the first NUM_TS_PER_MAG time series of each magnitude ##################
+# ###############################################################################
+# # Only take the first NUM_TS_PER_MAG of each magnitude
+# anm_info_first = (
+#     anm_info
+#     .groupby("anm_mag_norm", sort=True)
+#     .head(1)
+#     .reset_index(drop=True)
+# )
+# print(anm_info_first)
+
+# ###############################################################################
+# ############ Example: usage in practice #######################################
+# ###############################################################################
+# anm_info = (
+#     anm_info[(np.isin(anm_info["anm_mag_norm"].round(2), MAGNITUDES)) & 
+#              (anm_info["anm_start_ratio"] >= ANM_START_RANGE[0]) & 
+#              (anm_info["anm_start_ratio"] <= ANM_START_RANGE[1])
+#     ]
+#     .groupby("anm_mag_norm", sort=True)
+#     .head(NUM_TS_PER_MAG)
+#     .reset_index(drop=True)
+# )
+# print(anm_info)
+# print(f"Range of anm_start_ratio after dropout: {anm_info['anm_start_ratio'].min()} to {anm_info['anm_start_ratio'].max()}")
+# print(f"All the magnitudes: {anm_info['anm_mag_norm'].round(2).unique()}")
+# print(f"Number of time series: {len(anm_info)} ({len(MAGNITUDES)} magnitudes x {NUM_TS_PER_MAG} reps)")
+
+
+# ###############################################################################
+# ##################### TODO: Denormalize #######################################
+# ###############################################################################
+# # Denormalize: a trend of m per step on (y - mean) / std is m * std per step on y
+# anm_info["anm_mag"] = anm_info["anm_mag_norm"] * y_base.std()
+# anm_info["anm_start"] = (anm_info["anm_start_ratio"] * num_steps).astype(int)
+
+print('===========================================')
+1/0
 
 # Trend anomaly: trend changes from 0 to anm_mag at anm_start
 steps = np.arange(num_steps)
