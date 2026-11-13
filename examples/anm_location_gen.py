@@ -1,4 +1,4 @@
-"""Generate data/anomaly_info/anm_single_location.json.
+"""Generate data/anomaly_info/anm_single_location.csv.
 
 Columns:
     - anm_start_ratio: anomaly start, as a ratio of the series length, drawn
@@ -9,13 +9,13 @@ Usage:
 """
 
 import argparse
-import json
 import os
 
 import numpy as np
+import pandas as pd
 
 OUTPUT_PATH = os.path.join(
-    os.path.dirname(__file__), "..", "data", "anomaly_info", "anm_single_location.json"
+    os.path.dirname(__file__), "..", "data", "anomaly_info", "anm_single_location.csv"
 )
 
 
@@ -37,7 +37,6 @@ if __name__ == "__main__":
     anm_info = generate_location(args.num_samples, args.seed)
 
     os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
-    with open(OUTPUT_PATH, "w") as f:
-        json.dump(anm_info, f)
+    pd.DataFrame(anm_info).to_csv(OUTPUT_PATH, index=False)
 
     print(f"Saved {args.num_samples} rows to {os.path.normpath(OUTPUT_PATH)}")

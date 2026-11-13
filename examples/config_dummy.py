@@ -1,7 +1,7 @@
 """Dummy config: apply single trend anomalies to the stationary synthetic series.
 
 Loads the stationary series from data/synthetic/syn_values.csv and the anomaly info from
-data/anomaly_info/anm_single_location.json, then:
+data/anomaly_info/anm_single_location.csv, then:
     - keeps the first NUM_REP anm_start_ratio values within ANM_START_RANGE
     - for each anm_mag in the magnitudes and each kept start ratio, applies a trend
       anomaly: from the start point onward the zero trend becomes anm_mag
@@ -12,7 +12,6 @@ Usage:
     python examples/config_dummy.py
 """
 
-import json
 import os
 
 import matplotlib.pyplot as plt
@@ -28,15 +27,14 @@ NUM_POINTS_PER_CYCLE = 52
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 TS_PATH = os.path.join(DATA_DIR, "synthetic", "syn_values.csv")
-ANM_PATH = os.path.join(DATA_DIR, "anomaly_info", "anm_single_location.json")
+ANM_PATH = os.path.join(DATA_DIR, "anomaly_info", "anm_single_location.csv")
 
 # Load the stationary time series and the anomaly info
 # Wide CSV, one column per series (ts1, ts2, ...); shorter series are padded with
 # empty cells at the bottom, so drop the NaNs to recover each series' own length.
 values = pd.read_csv(TS_PATH)
 series = {name: values[name].dropna().to_numpy() for name in values.columns}
-with open(ANM_PATH) as f:
-    anm_info = json.load(f)  # {"anm_start_ratio": [...]}
+anm_info = pd.read_csv(ANM_PATH)  # column: anm_start_ratio
 
 # First NUM_REP anm_start_ratio values within ANM_START_RANGE
 anm_start_ratio = [
