@@ -98,29 +98,6 @@ def periodic_kernel(period: float, amplitude: float, length_scale: float = 1.0) 
 # Periods are in time steps (= weeks for weekly data). The comments give the data
 # frequency each period was chosen for in Chronos. Periods longer than 52 steps
 # (one year of weekly data) are commented out.
-KERNEL_BANK = [ 
-    # ExpSineSquared(periodicity=4 / LENGTH),  
-    # ExpSineSquared(periodicity=13 / LENGTH),  
-    # ExpSineSquared(periodicity=26 / LENGTH), 
-    # ExpSineSquared(periodicity=52 / LENGTH),  
-    # DotProduct(sigma_0=0.0),
-    # DotProduct(sigma_0=1.0),
-    # DotProduct(sigma_0=10.0),
-    # RBF(length_scale=0.1),
-    # RBF(length_scale=1.0),
-    # RBF(length_scale=10.0),
-    # RationalQuadratic(alpha=0.1),
-    # RationalQuadratic(alpha=1.0),
-    # RationalQuadratic(alpha=10.0),
-    # WhiteKernel(noise_level=0.1),
-    # WhiteKernel(noise_level=1.0),
-    # matern_kernel(phi=0.9, sigma=0.5, nu=0.5),  # AR(1), phi = 0.9, innovation std = 0.5
-    # matern_kernel(phi=0.9, sigma=0.5, nu=1.5),  # AR(remember slope), phi = 0.9
-    # matern_kernel(phi=0.9, sigma=0.5, nu=2.5),  # AR(remember curvature), phi = 0.9
-    # matern_kernel(phi=0.5, sigma=0.5, nu=0.5),  # AR(1), phi = 0.5, innovation std = 0.5
-    # Matern(length_scale=-1 / ((LENGTH - 1) * np.log(1))),  # ConstantKernel
-    # ConstantKernel(),
-]
 
 KERNEL_BANK_periodic = [ 
     periodic_kernel(period=52, amplitude=5),

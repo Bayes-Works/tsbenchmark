@@ -30,18 +30,18 @@ local_trend = LocalTrend(
     var_states=[1e-12, 1e-12],
     std_error=0.0,
 )
-# periodic_13 = Periodic(
-#     period=13,
-#     mu_states=[2.0, 0.0],
-#     var_states=[1e-12, 1e-12],
-#     std_error=0.0,
-# )
-# periodic_52 = Periodic(
-#     period=52,
-#     mu_states=[5.0, 0.0],
-#     var_states=[1e-12, 1e-12],
-#     std_error=0.0,
-# )
+periodic_13 = Periodic(
+    period=13,
+    mu_states=[2.0, 0.0],
+    var_states=[1e-12, 1e-12],
+    std_error=0.0,
+)
+periodic_52 = Periodic(
+    period=52,
+    mu_states=[5.0, 0.0],
+    var_states=[1e-12, 1e-12],
+    std_error=0.0,
+)
 autoregression = Autoregression(
     phi=0.9,
     std_error=0.5,
@@ -49,7 +49,7 @@ autoregression = Autoregression(
     var_states=[1e-12],
 )
 
-model = Model(local_trend, autoregression)
+model = Model(local_trend, periodic_13, periodic_52, autoregression)
 
 # Simulate from the state-space model: x_t = A x_{t-1} + w_t, y_t = C x_t
 A = np.asarray(model.transition_matrix)

@@ -1,0 +1,91 @@
+"""Dummy config: apply single trend anomalies to the stationary synthetic series.
+
+Loads the stationary series from data/synthetic/syn_ts.json and the anomaly info from
+data/anomaly_info/anm_single_location_sign.json, then:
+    - keeps the first NUM_REP (anm_start_ratio, anm_sign) pairs whose start ratio is
+      within ANM_START_RANGE
+    - for each anm_mag in the magnitudes and each kept pair, applies a trend anomaly:
+      from the start point onward the zero trend becomes anm_mag * anm_sign
+      (in units per NUM_POINTS_PER_CYCLE data points)
+    - plots each stationary series with the anomalies applied on top
+
+Usage:
+    python examples/config_dummy.py
+"""
+
+import json
+import os
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Inputs
+ANM_MAG_RANGE = (0.1, 1.0)  # anomaly magnitude, unit / NUM_POINTS_PER_CYCLE data points
+ANM_MAG_STEP = 0.1  # -> magnitudes 0.1, 0.2, ..., 1.0
+ANM_START_RANGE = (0.3, 0.6)  # allowed anm_start_ratio
+NUM_REP = 20  # number of (anm_start_ratio, anm_sign) pairs to use
+NUM_POINTS_PER_CYCLE = 52
+
+DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
+TS_PATH = os.path.join(DATA_DIR, "synthetic", "syn_ts.json")
+ANM_PATH = os.path.join(DATA_DIR, "anomaly_info", "anm_single_location_sign.json")
+
+# Load the stationary time series and the anomaly info
+with open(TS_PATH) as f:
+    series = json.load(f)  # {"ts_0": [...], ...}
+with open(ANM_PATH) as f:
+    anm_info = json.load(f)  # {"anm_start_ratio": [...], "anm_sign": [...]}
+
+# First NUM_REP (anm_start_ratio, anm_sign) pairs within ANM_START_RANGE
+pairs = [
+    (ratio, sign)
+    for ratio, sign in zip(anm_info["anm_start_ratio"], anm_info["anm_sign"])
+    if ANM_START_RANGE[0] <= ratio <= ANM_START_RANGE[1]
+][:NUM_REP]
+anm_start_ratio, anm_sign = map(list, zip(*pairs))
+
+anm_mags = np.round(
+    np.arange(ANM_MAG_RANGE[0], ANM_MAG_RANGE[1] + 1e-9, ANM_MAG_STEP), 2
+)
+
+
+def apply_trend_anomaly(ts, start_ratio, mag):
+    """From start_ratio onward, change the zero trend to a slope of mag
+    (unit / NUM_POINTS_PER_CYCLE data points; mag carries the sign)."""
+    y = np.asarray(ts, dtype=float).copy()
+    t_start = int(round(start_ratio * (len(y) - 1)))
+    y[t_start:] += mag / NUM_POINTS_PER_CYCLE * np.arange(len(y) - t_start)
+    return y
+
+# Apply: one anomalous series per (series, anm_mag, rep)
+anomalous = {
+    name: {
+        (mag, rep): apply_trend_anomaly(ts, anm_start_ratio[rep], mag * anm_sign[rep])
+        for mag in anm_mags
+        for rep in range(len(pairs))
+    }
+    for name, ts in series.items()
+}
+
+# Visualize: one subplot per stationary series, with ALL anomalies on top
+# (every rep at every magnitude), colored by magnitude.
+fig, axes = plt.subplots(5, 4, figsize=(16, 10), sharex=True)
+cmap = plt.get_cmap("viridis")
+for i, (name, ax) in enumerate(zip(series, axes.ravel())):
+    for rep in range(len(pairs)):
+        for mag in anm_mags:
+            ax.plot(
+                anomalous[name][(mag, rep)],
+                lw=0.5,
+                alpha=0.25,
+                color=cmap((mag - anm_mags[0]) / (anm_mags[-1] - anm_mags[0])),
+            )
+    ax.plot(series[name], lw=1.8, color="black")
+    ax.set_title(
+        f"{name}: {len(pairs)} reps x {len(anm_mags)} mags "
+        f"({anm_mags[0]}..{anm_mags[-1]})",
+        fontsize=8,
+    )
+fig.suptitle("Stationary series (black) with all trend anomalies (color = magnitude)")
+fig.tight_layout()
+plt.show()
