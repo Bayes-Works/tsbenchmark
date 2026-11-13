@@ -15,7 +15,7 @@ phi ~ U(0.5, 0.92) and std_error (innovation std) ~ U(0.5, 1), so the AR margina
 sigma / sqrt(1 - phi^2) stays <= 2.5 at sigma = 1 and the cycle stays visible.
 
 Usage:
-    from generator_canari import canari_gen
+    from examples.generator_canari import canari_gen
     ts = canari_gen(sample_frequency="W", num_points_per_cycle=52, seed=0)
 """
 
@@ -26,7 +26,7 @@ import numpy as np
 from canari import Model
 from canari.component import Autoregression, Periodic
 
-from generator_kernelsynth import calendar_periods
+from examples.generator_kernelsynth import calendar_periods
 
 LENGTH = 1024
 PHI_MAX = 0.92  # keeps the AR marginal std <= 2.5 at std_error = 1
