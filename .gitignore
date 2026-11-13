@@ -15,4 +15,4 @@ workflow/**
 
 # Exception
 !data/anomaly_info/
-!data/anomaly_info/anomaly_info.json
+!data/anomaly_info/anm_single_location.csv
