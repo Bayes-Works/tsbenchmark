@@ -42,8 +42,7 @@ def get_num_points_per_year(data_sampling_freq):
 
 
 def load_series(ts_path, num_series=None):
-    """First num_series stationary series (all if None) from a wide CSV, one column per
-    series, NaN-padded."""
+    """First num_series columns (all if None) of a wide CSV, one NaN-padded series each."""
     values = pd.read_csv(ts_path).iloc[:, :num_series]
     return {name: values[name].dropna().to_numpy() for name in values.columns}
 
@@ -56,7 +55,8 @@ def load_anm_start_ratios(anm_path, anm_start_range, num_rep):
 
 
 def build_anm_mags(anm_type, anm_mag_list):
-    """0 for no_anomaly, positive only for noise_range, mirrored to both signs otherwise."""
+    """Signed magnitudes: [0] for no_anomaly, positive only for noise_range (a noise std),
+    mirrored to both signs otherwise."""
     if anm_type == "no_anomaly":
         return np.array([0.0])
     mags = np.unique(np.asarray([] if anm_mag_list is None else anm_mag_list, dtype=float))
@@ -66,7 +66,10 @@ def build_anm_mags(anm_type, anm_mag_list):
 
 
 def apply_anomaly(anm_type, ts, start_ratio, mag, num_points_per_year):
-    """Apply one anomaly to ts. Returns (series with anomaly, (start, end) of the anomalous steps)."""
+    """Apply one anomaly, mag in the units of ts.
+
+    Returns (series with anomaly, (start, end)): the anomalous steps are start to end - 1.
+    """
     n = len(ts)
     t = start_index(start_ratio, n)
     if anm_type == "no_anomaly":
@@ -78,7 +81,7 @@ def apply_anomaly(anm_type, ts, start_ratio, mag, num_points_per_year):
     if anm_type == "global_outlier":
         return global_outlier_gen(ts, start_ratio, mag), (t, t + 1)
     if anm_type == "contextual_outlier":
-        y, t = contextual_outlier_gen(ts, start_ratio, mag)
+        y, t = contextual_outlier_gen(ts, start_ratio, mag)  # t: where it was actually placed
         return y, (t, t + 1)
     window = range_window(start_ratio, num_points_per_year, n)
     if anm_type == "noise_range":
@@ -90,7 +93,7 @@ def plot_dataset_figure(
     stationary_series, series_with_anomaly, anm_labels, anm_mags, anm_type, num_cols=4
 ):
     """One subplot per stationary series (black), all its anomalies on top, colored by |mag|,
-    with the time steps labelled 1 marked in red along the bottom."""
+    with the steps labelled 1 in any of them marked in red along the bottom."""
     num_rows = -(-len(stationary_series) // num_cols)
     fig, axes = plt.subplots(
         num_rows, num_cols, figsize=(4 * num_cols, 1.6 * num_rows), sharex=True, squeeze=False
@@ -126,17 +129,18 @@ def build_dataset(
     num_series=None,
     plot_dataset=False,
 ):
-    """Apply every anomaly of type anm_type to each stationary series.
+    """Apply one anomaly of type anm_type to each stationary series, for every start ratio
+    (rep) and every magnitude.
 
-    Uses the first num_series columns of the csv at ts_path (all if None). Magnitudes are in
-    std of each series and scaled to its units before use.
+    anm_mag_list holds absolute magnitudes in std of each series: build_anm_mags gives them
+    their signs and each one is multiplied by the series' std before use.
 
     Returns:
         stationary_series: {name: values}
         series_with_anomaly: {name: {(anm_mag, rep): values}}
         anm_labels: {name: {(anm_mag, rep): labels}}, 1 at the anomalous steps, 0 elsewhere
         anm_start_ratio: start ratios used, indexed by rep
-        anm_mags: magnitudes used
+        anm_mags: signed magnitudes used, in std of the series
     """
     if anm_type not in ANM_TYPES:
         raise ValueError(f"Unknown anm_type {anm_type!r}; choose one of {ANM_TYPES}")
