@@ -1,15 +1,4 @@
-"""Build a dataset: stationary time series with one type of anomaly applied.
-
-Usage:
-    from src.tsbenchmark.build_dataset import build_dataset
-    series, anomalous, anm_index, anm_start_ratio, anm_mags = build_dataset(
-        ts_path, anm_path, anm_type="trend", anm_mag_list=[0.1, 0.2, 0.5, 1.0],
-        anm_start_range=(0.3, 0.6), num_rep=20, num_points_per_year=52,
-        plot_dataset=True,
-    )
-"""
-
-from typing import Dict, List, Optional, Sequence, Tuple
+"""Build a dataset: stationary time series with one type of anomaly applied."""
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -22,6 +11,7 @@ from src.tsbenchmark.generator.generator_anomaly.point_anomaly import (
 )
 from src.tsbenchmark.generator.generator_anomaly.range_anomaly import (
     noise_anomaly_gen,
+    range_window,
     scale_anomaly_gen,
 )
 from src.tsbenchmark.generator.generator_anomaly.regime_anomaly import (
@@ -29,213 +19,144 @@ from src.tsbenchmark.generator.generator_anomaly.regime_anomaly import (
     trend_anomaly_gen,
 )
 
-# Anomaly types accepted by build_dataset(anm_type=...), and where each is generated
 ANM_TYPES = (
-    "no_anomaly",  # the stationary series, unchanged
-    "trend",  # regime_anomaly.trend_anomaly_gen
-    "level",  # regime_anomaly.level_anomaly_gen
-    "global_outlier",  # point_anomaly.global_outlier_gen
-    "contextual_outlier",  # point_anomaly.contextual_outlier_gen
-    "noise_range",  # range_anomaly.noise_anomaly_gen
-    "scale_range",  # range_anomaly.scale_anomaly_gen
+    "no_anomaly",
+    "trend",
+    "level",
+    "global_outlier",
+    "contextual_outlier",
+    "noise_range",
+    "scale_range",
 )
+NUM_POINTS_PER_YEAR = {"daily": 365, "weekly": 52, "monthly": 12, "quarterly": 4}
 
 
-def load_series(ts_path: str) -> Dict[str, np.ndarray]:
-    """Load the stationary time series from a wide CSV, as {name: values}.
+def get_num_points_per_year(data_sampling_freq):
+    """Number of data points in one year for a data sampling frequency."""
+    if data_sampling_freq not in NUM_POINTS_PER_YEAR:
+        raise ValueError(
+            f"Unknown data_sampling_freq {data_sampling_freq!r}; "
+            f"choose one of {tuple(NUM_POINTS_PER_YEAR)}"
+        )
+    return NUM_POINTS_PER_YEAR[data_sampling_freq]
 
-    The CSV has one column per series (ts1, ts2, ...); shorter series are padded with
-    empty cells at the bottom, so the NaNs are dropped to recover each series' length.
-    """
-    values = pd.read_csv(ts_path)
+
+def load_series(ts_path, num_series=None):
+    """First num_series stationary series (all if None) from a wide CSV, one column per
+    series, NaN-padded."""
+    values = pd.read_csv(ts_path).iloc[:, :num_series]
     return {name: values[name].dropna().to_numpy() for name in values.columns}
 
 
-def load_anm_start_ratios(
-    anm_path: str, anm_start_range: Tuple[float, float], num_rep: int
-) -> List[float]:
-    """Load the first num_rep anm_start_ratio values within anm_start_range.
-
-    The CSV has one column, anm_start_ratio: the anomaly start as a ratio of the
-    series length.
-    """
-    anm_info = pd.read_csv(anm_path)
+def load_anm_start_ratios(anm_path, anm_start_range, num_rep):
+    """First num_rep anm_start_ratio values within anm_start_range."""
     low, high = anm_start_range
-    return [ratio for ratio in anm_info["anm_start_ratio"] if low <= ratio <= high][
-        :num_rep
-    ]
+    ratios = pd.read_csv(anm_path)["anm_start_ratio"]
+    return [ratio for ratio in ratios if low <= ratio <= high][:num_rep]
 
 
-def build_anm_mags(anm_mag_list: Sequence[float]) -> np.ndarray:
-    """Signed anomaly magnitudes from a list of absolute magnitudes: the list is
-    sorted and mirrored to the negative side. The magnitudes need not be evenly
-    spaced. E.g. [0.1, 0.5, 1.0] gives -1.0, -0.5, -0.1, 0.1, 0.5, 1.0.
-    """
-    mags = np.unique(np.asarray(anm_mag_list, dtype=float))  # sorted, no duplicates
-    if mags.size == 0 or np.any(mags <= 0):
-        raise ValueError(
-            f"anm_mag_list must hold positive (absolute) magnitudes, got {list(anm_mag_list)}"
-        )
-    return np.concatenate([-mags[::-1], mags])
-
-
-def check_anm_type(anm_type: str) -> None:
-    """Raise a ValueError if anm_type is not one of ANM_TYPES."""
-    if anm_type not in ANM_TYPES:
-        raise ValueError(f"Unknown anm_type {anm_type!r}; choose one of {list(ANM_TYPES)}")
-
-
-def scale_mag(mag: float, ts) -> float:
-    """Convert a magnitude from the standardized space of ts to the units of ts.
-
-    In the standardized space ts has std 1, so a magnitude of mag there is
-    mag * std(ts) in the original units (population std, as in (ts - mean) / std).
-    """
-    return mag * float(np.std(ts))
-
-
-def apply_anomaly(
-    anm_type: str, ts, start_ratio: float, scaled_mag: float, num_points_per_year: float
-) -> Tuple[np.ndarray, Optional[int]]:
-    """Apply one anomaly of type anm_type to ts, by calling its generator.
-
-    scaled_mag is already in the units of ts (see scale_mag). Each generator takes
-    only the inputs it needs, e.g. the level shift does not depend on
-    num_points_per_year.
-
-    Returns:
-        y: the series with the anomaly.
-        anm_index: the time step where the anomaly starts (None for "no_anomaly").
-            It is the start step from start_ratio, except for "contextual_outlier",
-            whose generator may move the outlier and reports where it put it.
-    """
-    check_anm_type(anm_type)
+def build_anm_mags(anm_type, anm_mag_list):
+    """0 for no_anomaly, positive only for noise_range, mirrored to both signs otherwise."""
     if anm_type == "no_anomaly":
-        return np.asarray(ts, dtype=float).copy(), None  # start_ratio and mag ignored
-    if anm_type == "contextual_outlier":
-        return contextual_outlier_gen(ts, start_ratio, scaled_mag)
+        return np.array([0.0])
+    mags = np.unique(np.asarray([] if anm_mag_list is None else anm_mag_list, dtype=float))
+    if mags.size == 0 or np.any(mags <= 0):
+        raise ValueError(f"anm_mag_list must hold positive magnitudes, got {anm_mag_list}")
+    return mags if anm_type == "noise_range" else np.concatenate([-mags[::-1], mags])
 
-    t_start = start_index(start_ratio, len(ts))
+
+def apply_anomaly(anm_type, ts, start_ratio, mag, num_points_per_year):
+    """Apply one anomaly to ts. Returns (series with anomaly, (start, end) of the anomalous steps)."""
+    n = len(ts)
+    t = start_index(start_ratio, n)
+    if anm_type == "no_anomaly":
+        return np.asarray(ts, dtype=float).copy(), (0, 0)
     if anm_type == "trend":
-        return trend_anomaly_gen(ts, start_ratio, scaled_mag, num_points_per_year), t_start
+        return trend_anomaly_gen(ts, start_ratio, mag, num_points_per_year), (t, n)
     if anm_type == "level":
-        return level_anomaly_gen(ts, start_ratio, scaled_mag), t_start
+        return level_anomaly_gen(ts, start_ratio, mag), (t, n)
     if anm_type == "global_outlier":
-        return global_outlier_gen(ts, start_ratio, scaled_mag), t_start
+        return global_outlier_gen(ts, start_ratio, mag), (t, t + 1)
+    if anm_type == "contextual_outlier":
+        y, t = contextual_outlier_gen(ts, start_ratio, mag)
+        return y, (t, t + 1)
+    window = range_window(start_ratio, num_points_per_year, n)
     if anm_type == "noise_range":
-        return noise_anomaly_gen(ts, start_ratio, scaled_mag), t_start
-    if anm_type == "scale_range":
-        return scale_anomaly_gen(ts, start_ratio, scaled_mag), t_start
-    raise AssertionError(f"anm_type {anm_type!r} is in ANM_TYPES but has no generator")
+        return noise_anomaly_gen(ts, start_ratio, mag, num_points_per_year), window
+    return scale_anomaly_gen(ts, start_ratio, mag, num_points_per_year), window
 
 
 def plot_dataset_figure(
-    stationary_series: Dict[str, np.ndarray],
-    series_with_anomaly: Dict[str, dict],
-    anm_start_ratio: List[float],
-    anm_mags: np.ndarray,
-    anm_type: str = "",
-    num_cols: int = 4,
-) -> None:
-    """Plot one subplot per stationary series (black) with ALL its anomalies on top
-    (every rep at every magnitude), colored by absolute magnitude so the negative
-    side mirrors the positive side's colors. Shows the figure."""
-    num_rows = int(np.ceil(len(stationary_series) / num_cols))
+    stationary_series, series_with_anomaly, anm_labels, anm_mags, anm_type, num_cols=4
+):
+    """One subplot per stationary series (black), all its anomalies on top, colored by |mag|,
+    with the time steps labelled 1 marked in red along the bottom."""
+    num_rows = -(-len(stationary_series) // num_cols)
     fig, axes = plt.subplots(
         num_rows, num_cols, figsize=(4 * num_cols, 1.6 * num_rows), sharex=True, squeeze=False
     )
-    cmap = plt.get_cmap("viridis")
-    abs_min, abs_max = np.abs(anm_mags).min(), np.abs(anm_mags).max()
-    abs_span = (abs_max - abs_min) or 1.0  # a single magnitude has zero span
-    for name, ax in zip(stationary_series, axes.ravel()):
-        for rep in range(len(anm_start_ratio)):
-            for mag in anm_mags:
-                ax.plot(
-                    series_with_anomaly[name][(mag, rep)],
-                    lw=0.5,
-                    alpha=0.25,
-                    color=cmap((abs(mag) - abs_min) / abs_span),
-                )
-        ax.plot(stationary_series[name], lw=1.8, color="black")
-        ax.set_title(
-            f"{name}",
-            fontsize=8,
-        )
+    norm = plt.Normalize(np.abs(anm_mags).min(), np.abs(anm_mags).max())
+    for ax, (name, ts) in zip(axes.ravel(), stationary_series.items()):
+        for (mag, _), y in series_with_anomaly[name].items():
+            ax.plot(y, lw=0.5, alpha=0.25, color=plt.cm.viridis(norm(abs(mag))))
+        ax.plot(ts, lw=1.8, color="black")
+        t_anm = np.flatnonzero(np.any(list(anm_labels[name].values()), axis=0))
+        ax.plot(t_anm, np.full(len(t_anm), 0.02), ".", ms=2, color="red",
+                transform=ax.get_xaxis_transform())
+        ax.set_title(name, fontsize=8)
     for ax in axes.ravel()[len(stationary_series):]:
         ax.set_visible(False)
     fig.suptitle(
-        f"Stationary series (black) with all {anm_type} anomalies (color = |magnitude|)"
+        f"Stationary series (black) with all {anm_type} anomalies (color = |magnitude|, "
+        "red = label 1)"
     )
     fig.tight_layout()
     plt.show()
 
 
 def build_dataset(
-    ts_path: str,
-    anm_path: str,
+    ts_path,
+    anm_path,
     *,
-    anm_type: str,
-    anm_mag_list: Optional[Sequence[float]] = None,
-    anm_start_range: Tuple[float, float],
-    num_rep: int,
-    num_points_per_year: float,
-    plot_dataset: bool = False,
+    anm_type,
+    anm_mag_list=None,
+    anm_start_range,
+    num_rep,
+    data_sampling_freq,
+    num_series=None,
+    plot_dataset=False,
 ):
-    """Load the stationary series and apply every anomaly of type anm_type to each of them.
+    """Apply every anomaly of type anm_type to each stationary series.
 
-    anm_type is one of ANM_TYPES ("no_anomaly", "trend", "level", "global_outlier",
-    "contextual_outlier", "noise_range", "scale_range"); "no_anomaly" leaves every
-    series unchanged; it needs no anm_mag_list (None or empty), and gives one series
-    per start ratio, keyed with magnitude 0.0. For every other type anm_mag_list holds the absolute anomaly magnitudes to test (any spacing); each is
-    applied with both signs. If plot_dataset is True, also plot the dataset (see plot_dataset_figure).
-
-    The magnitudes are relative: they are in the standardized space of each stationary
-    series (std = 1). Before being passed to the anomaly generator, each magnitude is
-    scaled to the series' own units: scaled_mag = anm_mag * std(series). So the same
-    anm_mag is equally large, relative to its series, in every series.
+    Uses the first num_series columns of the csv at ts_path (all if None). Magnitudes are in
+    std of each series and scaled to its units before use.
 
     Returns:
-        stationary_series: {name: stationary values}
-        series_with_anomaly: {name: {(anm_mag, rep): time series with anomaly}}, one series per
-            magnitude and start ratio (rep indexes anm_start_ratio; anm_mag is the
-            relative, unscaled magnitude)
-        anm_index: {name: {(anm_mag, rep): time step where the anomaly starts}}, the
-            label for each series in series_with_anomaly (None for "no_anomaly"). It
-            matches anm_start_ratio except for contextual outliers, which can be
-            moved a few steps to stay inside the series range.
-        anm_start_ratio: the start ratios used
-        anm_mags: the signed relative magnitudes used (negatives first, then positives)
+        stationary_series: {name: values}
+        series_with_anomaly: {name: {(anm_mag, rep): values}}
+        anm_labels: {name: {(anm_mag, rep): labels}}, 1 at the anomalous steps, 0 elsewhere
+        anm_start_ratio: start ratios used, indexed by rep
+        anm_mags: magnitudes used
     """
-    # Check the inputs before loading anything
-    check_anm_type(anm_type)
-    if anm_type == "no_anomaly":
-        # The magnitude has no effect: a single magnitude of 0 gives one unchanged
-        # series per start ratio, instead of identical copies for every magnitude
-        anm_mags = np.array([0.0])
-    else:
-        if anm_mag_list is None or len(anm_mag_list) == 0:
-            raise ValueError(f"anm_mag_list is required for anm_type {anm_type!r}")
-        anm_mags = build_anm_mags(anm_mag_list)
-
-    stationary_series = load_series(ts_path)
+    if anm_type not in ANM_TYPES:
+        raise ValueError(f"Unknown anm_type {anm_type!r}; choose one of {ANM_TYPES}")
+    num_points_per_year = get_num_points_per_year(data_sampling_freq)
+    anm_mags = build_anm_mags(anm_type, anm_mag_list)
+    stationary_series = load_series(ts_path, num_series)
     anm_start_ratio = load_anm_start_ratios(anm_path, anm_start_range, num_rep)
 
-    series_with_anomaly = {}
-    anm_index = {}
+    series_with_anomaly, anm_labels = {}, {}
     for name, ts in stationary_series.items():
-        series_with_anomaly[name] = {}
-        anm_index[name] = {}
-        for mag in anm_mags:
-            scaled_mag = scale_mag(mag, ts)  # relative magnitude -> units of this series
-            for rep, start_ratio in enumerate(anm_start_ratio):
-                y, t_anomaly = apply_anomaly(
-                    anm_type, ts, start_ratio, scaled_mag, num_points_per_year
+        series_with_anomaly[name], anm_labels[name] = {}, {}
+        for rep, start_ratio in enumerate(anm_start_ratio):
+            for mag in anm_mags:
+                y, (start, end) = apply_anomaly(
+                    anm_type, ts, start_ratio, mag * ts.std(), num_points_per_year
                 )
+                labels = np.zeros(len(y), dtype=int)
+                labels[start:end] = 1
                 series_with_anomaly[name][(mag, rep)] = y
-                anm_index[name][(mag, rep)] = t_anomaly
+                anm_labels[name][(mag, rep)] = labels
     if plot_dataset:
-        plot_dataset_figure(
-            stationary_series, series_with_anomaly, anm_start_ratio, anm_mags, anm_type
-        )
-
-    return stationary_series, series_with_anomaly, anm_index, anm_start_ratio, anm_mags
+        plot_dataset_figure(stationary_series, series_with_anomaly, anm_labels, anm_mags, anm_type)
+    return stationary_series, series_with_anomaly, anm_labels, anm_start_ratio, anm_mags
