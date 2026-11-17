@@ -20,13 +20,21 @@ from src.tsbenchmark.build_dataset import build_dataset
 # Inputs
 # Anomaly type: "no_anomaly" (stationary series, unchanged), "trend", "level",
 # "global_outlier", "contextual_outlier", "noise_range", "scale_range"
-ANM_TYPE = "no_anomaly"
-# Absolute anomaly magnitudes to test, in the standardized space of each stationary
-# series (1.0 = one std of that series; for "trend", per NUM_POINTS_PER_YEAR data
-# points). Scaled to each series' units before the anomaly is applied. Any spacing.
-# Each is applied with both signs: -1.0, ..., -0.2, 0.2, ..., 1.0
+# # Stationary time series 
+# ANM_TYPE = "no_anomaly"
+
+# # Time series with regime anomalies
+# ANM_TYPE = "trend"
 # ANM_MAG_LIST = [0.2, 0.4, 0.6, 0.8, 1.0]
-ANM_START_RANGE = (0.3, 0.6)  # allowed anm_start_ratio
+# ANM_START_RANGE = (0.3, 0.6)  # allowed anm_start_ratio
+
+# Time series with point anomalies
+ANM_TYPE = "global_outlier"
+ANM_MAG_LIST = [0.05, 0.1, 0.2, 0.3, 0.5] # Global outlier: |mag| = how far beyond the series' max/min, in std of the series
+# ANM_TYPE = "contextual_outlier"
+# ANM_MAG_LIST = [0.5, 0.75, 1.0] # Contextual outlier: |mag| = how far from the series' own value, in std of the series
+ANM_START_RANGE = (0.3, 0.8)  # allowed anm_start_ratio
+
 NUM_REP = 20  # number of anm_start_ratio values to use
 NUM_POINTS_PER_YEAR = 52
 PLOT_DATASET = True  # plot each stationary series with its anomalies on top
@@ -37,11 +45,11 @@ ANM_PATH = os.path.join(DATA_DIR, "anomaly_info", "anm_single_location.csv")
 
 # Load the stationary series and apply every anomaly of type ANM_TYPE:
 # series_with_anomaly[name][(anm_mag, rep)] is one series with an anomaly applied
-stationary_series, series_with_anomaly, anm_start_ratio, anm_mags = build_dataset(
+stationary_series, series_with_anomaly, anm_index, anm_start_ratio, anm_mags = build_dataset(
     TS_PATH,
     ANM_PATH,
     anm_type=ANM_TYPE,
-    # anm_mag_list=ANM_MAG_LIST,
+    anm_mag_list=ANM_MAG_LIST,
     anm_start_range=ANM_START_RANGE,
     num_rep=NUM_REP,
     num_points_per_year=NUM_POINTS_PER_YEAR,

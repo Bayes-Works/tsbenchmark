@@ -2,7 +2,7 @@
 
 Usage:
     from src.tsbenchmark.build_dataset import build_dataset
-    series, anomalous, anm_start_ratio, anm_mags = build_dataset(
+    series, anomalous, anm_index, anm_start_ratio, anm_mags = build_dataset(
         ts_path, anm_path, anm_type="trend", anm_mag_list=[0.1, 0.2, 0.5, 1.0],
         anm_start_range=(0.3, 0.6), num_rep=20, num_points_per_year=52,
         plot_dataset=True,
@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from src.tsbenchmark.generator.generator_anomaly.anomaly_utils import start_index
 from src.tsbenchmark.generator.generator_anomaly.point_anomaly import (
     contextual_outlier_gen,
     global_outlier_gen,
@@ -95,28 +96,36 @@ def scale_mag(mag: float, ts) -> float:
 
 def apply_anomaly(
     anm_type: str, ts, start_ratio: float, scaled_mag: float, num_points_per_year: float
-) -> np.ndarray:
+) -> Tuple[np.ndarray, Optional[int]]:
     """Apply one anomaly of type anm_type to ts, by calling its generator.
 
     scaled_mag is already in the units of ts (see scale_mag). Each generator takes
     only the inputs it needs, e.g. the level shift does not depend on
     num_points_per_year.
+
+    Returns:
+        y: the series with the anomaly.
+        anm_index: the time step where the anomaly starts (None for "no_anomaly").
+            It is the start step from start_ratio, except for "contextual_outlier",
+            whose generator may move the outlier and reports where it put it.
     """
     check_anm_type(anm_type)
     if anm_type == "no_anomaly":
-        return np.asarray(ts, dtype=float).copy()  # start_ratio and mag are ignored
-    if anm_type == "trend":
-        return trend_anomaly_gen(ts, start_ratio, scaled_mag, num_points_per_year)
-    if anm_type == "level":
-        return level_anomaly_gen(ts, start_ratio, scaled_mag)
-    if anm_type == "global_outlier":
-        return global_outlier_gen(ts, start_ratio, scaled_mag)
+        return np.asarray(ts, dtype=float).copy(), None  # start_ratio and mag ignored
     if anm_type == "contextual_outlier":
         return contextual_outlier_gen(ts, start_ratio, scaled_mag)
+
+    t_start = start_index(start_ratio, len(ts))
+    if anm_type == "trend":
+        return trend_anomaly_gen(ts, start_ratio, scaled_mag, num_points_per_year), t_start
+    if anm_type == "level":
+        return level_anomaly_gen(ts, start_ratio, scaled_mag), t_start
+    if anm_type == "global_outlier":
+        return global_outlier_gen(ts, start_ratio, scaled_mag), t_start
     if anm_type == "noise_range":
-        return noise_anomaly_gen(ts, start_ratio, scaled_mag)
+        return noise_anomaly_gen(ts, start_ratio, scaled_mag), t_start
     if anm_type == "scale_range":
-        return scale_anomaly_gen(ts, start_ratio, scaled_mag)
+        return scale_anomaly_gen(ts, start_ratio, scaled_mag), t_start
     raise AssertionError(f"anm_type {anm_type!r} is in ANM_TYPES but has no generator")
 
 
@@ -190,6 +199,10 @@ def build_dataset(
         series_with_anomaly: {name: {(anm_mag, rep): time series with anomaly}}, one series per
             magnitude and start ratio (rep indexes anm_start_ratio; anm_mag is the
             relative, unscaled magnitude)
+        anm_index: {name: {(anm_mag, rep): time step where the anomaly starts}}, the
+            label for each series in series_with_anomaly (None for "no_anomaly"). It
+            matches anm_start_ratio except for contextual outliers, which can be
+            moved a few steps to stay inside the series range.
         anm_start_ratio: the start ratios used
         anm_mags: the signed relative magnitudes used (negatives first, then positives)
     """
@@ -208,17 +221,21 @@ def build_dataset(
     anm_start_ratio = load_anm_start_ratios(anm_path, anm_start_range, num_rep)
 
     series_with_anomaly = {}
+    anm_index = {}
     for name, ts in stationary_series.items():
         series_with_anomaly[name] = {}
+        anm_index[name] = {}
         for mag in anm_mags:
             scaled_mag = scale_mag(mag, ts)  # relative magnitude -> units of this series
             for rep, start_ratio in enumerate(anm_start_ratio):
-                series_with_anomaly[name][(mag, rep)] = apply_anomaly(
+                y, t_anomaly = apply_anomaly(
                     anm_type, ts, start_ratio, scaled_mag, num_points_per_year
                 )
+                series_with_anomaly[name][(mag, rep)] = y
+                anm_index[name][(mag, rep)] = t_anomaly
     if plot_dataset:
         plot_dataset_figure(
             stationary_series, series_with_anomaly, anm_start_ratio, anm_mags, anm_type
         )
 
-    return stationary_series, series_with_anomaly, anm_start_ratio, anm_mags
+    return stationary_series, series_with_anomaly, anm_index, anm_start_ratio, anm_mags

@@ -14,10 +14,7 @@ Usage:
 
 import numpy as np
 
-
-def _start_index(start_ratio: float, num_obs: int) -> int:
-    """Time step where the anomaly starts, from its ratio of the series length."""
-    return int(round(start_ratio * (num_obs - 1)))
+from src.tsbenchmark.generator.generator_anomaly.anomaly_utils import start_index
 
 
 def trend_anomaly_gen(
@@ -33,7 +30,7 @@ def trend_anomaly_gen(
         num_points_per_year: number of data points in one year.
     """
     y = np.asarray(ts, dtype=float).copy()
-    t_start = _start_index(start_ratio, len(y))
+    t_start = start_index(start_ratio, len(y))
     y[t_start:] += mag / num_points_per_year * np.arange(len(y) - t_start)
     return y
 
@@ -48,5 +45,5 @@ def level_anomaly_gen(ts, start_ratio: float, mag: float) -> np.ndarray:
         mag: signed size of the level shift, in the units of the series.
     """
     y = np.asarray(ts, dtype=float).copy()
-    y[_start_index(start_ratio, len(y)):] += mag
+    y[start_index(start_ratio, len(y)):] += mag
     return y
