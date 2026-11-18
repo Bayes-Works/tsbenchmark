@@ -18,6 +18,7 @@ from src.tsbenchmark.generator.generator_anomaly.regime_anomaly import (
     level_anomaly_gen,
     trend_anomaly_gen,
 )
+from src.tsbenchmark.utils import get_num_points_per_year
 
 ANM_TYPES = (
     "no_anomaly",
@@ -28,17 +29,6 @@ ANM_TYPES = (
     "noise_range",
     "scale_range",
 )
-NUM_POINTS_PER_YEAR = {"daily": 365, "weekly": 52, "monthly": 12, "quarterly": 4}
-
-
-def get_num_points_per_year(data_sampling_freq):
-    """Number of data points in one year for a data sampling frequency."""
-    if data_sampling_freq not in NUM_POINTS_PER_YEAR:
-        raise ValueError(
-            f"Unknown data_sampling_freq {data_sampling_freq!r}; "
-            f"choose one of {tuple(NUM_POINTS_PER_YEAR)}"
-        )
-    return NUM_POINTS_PER_YEAR[data_sampling_freq]
 
 
 def load_series(ts_path, num_series=None):
