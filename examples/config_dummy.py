@@ -8,6 +8,8 @@ Usage:
 import os
 
 from tsbenchmark.build_dataset import build_dataset
+from tsbenchmark.detector.online.gaussian_quantile_detector import GaussianQuantileDetector
+from tsbenchmark.utils import get_num_points_per_year
 
 # Inputs
 DATA_SAMPLING_FREQ = "weekly"  # "daily", "weekly", "monthly" or "quarterly"
@@ -28,6 +30,9 @@ NUM_REP = 20  # use the first NUM_REP anm_start_ratio values within ANM_START_RA
 NUM_SERIES = None  # load the first NUM_SERIES columns of TS_PATH; None = all
 PLOT_DATASET = True
 
+THRESHOLD = 0.99  # alarm when y_t is outside the central 99% interval of the Gaussian of the past
+NUM_TRAIN_CYCLES = 3  # the first NUM_TRAIN_CYCLES yearly cycles train the detector
+
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 TS_PATH = os.path.join(DATA_DIR, "synthetic", "syn_values.csv")
 # TS_PATH = os.path.join(DATA_DIR, "real100", "weekly_values.csv")
@@ -46,6 +51,20 @@ stationary_series, series_with_anomaly, anm_labels, anm_start_ratio, anm_mags = 
 )
 
 # Next step: build base detector and a random detector
+train_len = NUM_TRAIN_CYCLES * get_num_points_per_year(DATA_SAMPLING_FREQ)
+detector = GaussianQuantileDetector(threshold=THRESHOLD)
+# NOTE: anm_labels_pred only covers the steps after the training part (no prediction there), so
+# it is train_len steps shorter than anm_labels: anm_labels_pred[name][key][i] is the prediction
+# of step train_len + i, to compare with anm_labels[name][key][train_len:].
+anm_labels_pred = {
+    name: {
+        key: detector.fit(y[:train_len]).detect(
+            y[train_len:], plot=False, anm_labels=anm_labels[name][key]
+        )
+        for key, y in series_with_anomaly[name].items()
+    }
+    for name in series_with_anomaly
+}
 
 # Next step: build detector runner to apply the detector to the series_with_anomaly and produce anm_labels_pred
 

@@ -1,7 +1,7 @@
 """Base classes of the anomaly detectors.
 
 Every detector is used the same way: fit(y_train) on the anomaly-free start of a series, then
-score(y) gives one anomaly score per time step and predict(y) the 0/1 labels. Three kinds:
+score(y) gives one anomaly score per time step and detect(y) the 0/1 labels. Three kinds:
     - OfflineDetector: the score at t may use the whole series
     - OnlineDetector: the score at t uses y[0..t] only, one point at a time
     - OfflineToOnlineDetector: an OfflineDetector refitted on y[0..t], with a rule turning its
@@ -13,11 +13,11 @@ from copy import deepcopy
 
 import numpy as np
 
-from tsbenchmark.utils import get_num_points_per_year
+from tsbenchmark.utils import get_num_points_per_year, plot_offline, plot_online
 
 
 class BaseDetector(ABC):
-    """Fit on the training part, then score and predict any series.
+    """Fit on the training part, then score and detect any series.
 
     Subclasses set the class attributes, implement score and, if the method learns, _fit.
     """
@@ -33,10 +33,12 @@ class BaseDetector(ABC):
         self.num_points_per_year = (
             None if data_sampling_freq is None else get_num_points_per_year(data_sampling_freq)
         )
+        self.y_train = None  # training part, kept by fit to be drawn in front of y in plots
 
     def fit(self, y_train, labels_train=None):
         """Learn from the training part, then tune the threshold if none was given."""
         y_train = np.asarray(y_train, dtype=float)
+        self.y_train = y_train
         self._fit(y_train, labels_train)
         if self.output == "score" and self.threshold is None:
             self.threshold = self.tune_threshold(y_train)
@@ -54,14 +56,26 @@ class BaseDetector(ABC):
     def score(self, y):
         """One anomaly score per time step of y, higher = more anomalous, NaN allowed."""
 
-    def detect(self, y):
+    def detect(self, y, plot=False, anm_labels=None):
         """0/1 per time step: score > threshold, or the 0/1 scores of an "alarm" detector.
-        NaN scores give 0."""
+        NaN scores give 0.
+
+        plot: also draw the training part from fit (unscored) then y, with the scores and the
+        alarms, step by step for an online detector. anm_labels: true labels of the training part
+        then y, drawn to compare with the alarms (only used in the plot).
+        """
         if self.output == "score" and self.threshold is None:
             raise ValueError(f"{self.name} has no threshold: give one or call fit first")
         scores = np.asarray(self.score(y), dtype=float)
         alarm = scores if self.output == "alarm" else scores > self.threshold
-        return np.nan_to_num(alarm).astype(int)
+        alarm = np.nan_to_num(alarm).astype(int)
+        if plot:
+            plot_detection = plot_online if self.mode == "online" else plot_offline
+            threshold = self.threshold if self.output == "score" else None
+            plot_detection(
+                y, scores, alarm, threshold, anm_labels, title=self.name, y_train=self.y_train
+            )
+        return alarm
 
 
 class OfflineDetector(BaseDetector):
