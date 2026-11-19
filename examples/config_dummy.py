@@ -44,9 +44,3 @@ stationary_series, series_with_anomaly, anm_labels, anm_start_ratio, anm_mags = 
     num_series=NUM_SERIES,
     plot_dataset=PLOT_DATASET,
 )
-
-# Next step: build base detector and a random detector
-
-# Next step: build detector runner to apply the detector to the series_with_anomaly and produce anm_labels_pred
-
-# Next next step: evaluation metrics to compare the detector's detections with anm_labels
