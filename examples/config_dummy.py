@@ -8,7 +8,7 @@ Usage:
 import os
 
 from tsbenchmark.build_dataset import build_dataset
-from tsbenchmark.detector.online.gaussian_quantile_detector import GaussianQuantileDetector
+from tsbenchmark.detector.online.gaussian_naive_detector import GaussianNaiveDetector
 from tsbenchmark.utils import get_num_points_per_year
 
 # Inputs
@@ -52,7 +52,7 @@ stationary_series, series_with_anomaly, anm_labels, anm_start_ratio, anm_mags = 
 
 # Next step: build base detector and a random detector
 train_len = NUM_TRAIN_CYCLES * get_num_points_per_year(DATA_SAMPLING_FREQ)
-detector = GaussianQuantileDetector(threshold=THRESHOLD)
+detector = GaussianNaiveDetector(threshold=THRESHOLD)
 # NOTE: anm_labels_pred only covers the steps after the training part (no prediction there), so
 # it is train_len steps shorter than anm_labels: anm_labels_pred[name][key][i] is the prediction
 # of step train_len + i, to compare with anm_labels[name][key][train_len:].

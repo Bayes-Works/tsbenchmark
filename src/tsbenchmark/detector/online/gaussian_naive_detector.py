@@ -1,4 +1,4 @@
-"""Gaussian quantile detector: an online point detector.
+"""Gaussian naive detector: an online point detector.
 
 At each step t, a Gaussian is fitted to all the points before t: the training part given to fit,
 then y[:t] (running mean and std). The score of y_t is the confidence level of the narrowest
@@ -7,7 +7,7 @@ central interval of that Gaussian that still contains y_t: 2 * Phi(|y_t - mean| 
 falls outside the central 95% interval.
 
 Usage:
-    detector = GaussianQuantileDetector(threshold=0.95).fit(y[:train_len])
+    detector = GaussianNaiveDetector(threshold=0.95).fit(y[:train_len])
     labels = detector.detect(y[train_len:])
 """
 
@@ -18,14 +18,14 @@ import numpy as np
 from src.tsbenchmark.detector.base_detector import OnlineDetector
 
 
-class GaussianQuantileDetector(OnlineDetector):
+class GaussianNaiveDetector(OnlineDetector):
     """Alarm when y_t is outside the central `threshold` interval of a Gaussian fitted to the
     points before it: the training part, then y[:t].
 
     ddof: delta degrees of freedom of the std (1 = sample std).
     """
 
-    name = "GaussianQuantile"
+    name = "GaussianNaive"
     learning = "semi-supervised"  # fitted on the anomaly-free training part, then updated online
 
     def __init__(self, threshold=None, ddof=1):
@@ -47,7 +47,7 @@ class GaussianQuantileDetector(OnlineDetector):
         std, deviation = sqrt(self.m2 / (self.n - self.ddof)), abs(y_t - self.mean)
         if std == 0:
             return float(deviation > 0)  # zero-width Gaussian: any deviation is beyond every interval
-        return erf(deviation / (std * sqrt(2)))  # = 2 * Phi(|z|) - 1
+        return erf(deviation / (std * sqrt(2)))  # = 2 * Phi(|Z|) - 1 = P(|Z| <= |y_t - mean| / std) =confidence level of the narrowest central interval containing y_t
 
     def update(self, y_t):
         """Welford's update of the running mean and sum of squared deviations."""
