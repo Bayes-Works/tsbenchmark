@@ -31,8 +31,9 @@ num_obs_list = rng.integers(
     size=NUM_SERIES, endpoint=True,
 )
 
-# First half from canari_gen, second half from kernel_synth_gen
-generators = [canari_gen] * (NUM_SERIES // 2) + [kernel_synth_gen] * (NUM_SERIES - NUM_SERIES // 2)
+# Decide how many time series from canari_gen, and how many from kernel_synth_gen
+# generators = [canari_gen] * (NUM_SERIES // 2) + [kernel_synth_gen] * (NUM_SERIES - NUM_SERIES // 2)
+generators = [canari_gen] * NUM_SERIES
 series = [
     gen(SAMPLE_FREQUENCY, NUM_POINTS_PER_CYCLE, num_obs=int(n), seed=SEED + i)
     for i, (gen, n) in enumerate(zip(generators, num_obs_list))
