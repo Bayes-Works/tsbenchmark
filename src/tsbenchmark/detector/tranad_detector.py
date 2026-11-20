@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import torch
 from typing import Optional
-from src.tsbenchmark.detector.base_detector import BaseDetector
+from tsbenchmark.detector.base_detector import BaseDetector
 from tranad.src.models import TranAD
 from tranad.src.constants import args 
 from tranad.main import backprop, convert_to_windows
