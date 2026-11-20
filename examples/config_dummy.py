@@ -8,7 +8,8 @@ Usage:
 import os
 
 from src.tsbenchmark.build_dataset import build_dataset
-from src.tsbenchmark.detector.online.gaussian_naive_detector import GaussianNaiveDetector
+from src.tsbenchmark.detector.online.gaussian_naive_online_detector import GaussianNaiveOnlineDetector
+from src.tsbenchmark.detector.offline.gaussian_naive_offline_detector import GaussianNaiveOfflineDetector
 from src.tsbenchmark.utils import get_num_points_per_year
 
 # Inputs
@@ -50,22 +51,22 @@ stationary_series, series_with_anomaly, anm_labels, anm_start_ratio, anm_mags = 
     plot_dataset=PLOT_DATASET,
 )
 
-# Next step: build base detector and a random detector
+# Detector
 train_len = NUM_TRAIN_CYCLES * get_num_points_per_year(DATA_SAMPLING_FREQ)
-detector = GaussianNaiveDetector(threshold=THRESHOLD)
+# detector = GaussianNaiveOnlineDetector(threshold=THRESHOLD)
+detector = GaussianNaiveOfflineDetector(threshold=THRESHOLD)
 # NOTE: anm_labels_pred only covers the steps after the training part (no prediction there), so
 # it is train_len steps shorter than anm_labels: anm_labels_pred[name][key][i] is the prediction
 # of step train_len + i, to compare with anm_labels[name][key][train_len:].
+# Run only on the first series: the first name and its first (anm_mag, rep) key.
+name = next(iter(series_with_anomaly))
+key, y = next(iter(series_with_anomaly[name].items()))
 anm_labels_pred = {
     name: {
         key: detector.fit(y[:train_len]).detect(
-            y[train_len:], plot=False, anm_labels=anm_labels[name][key]
+            y[train_len:], plot=True, anm_labels=anm_labels[name][key]
         )
-        for key, y in series_with_anomaly[name].items()
     }
-    for name in series_with_anomaly
 }
-
-# Next step: build detector runner to apply the detector to the series_with_anomaly and produce anm_labels_pred
 
 # Next next step: evaluation metrics to compare the detector's detections with anm_labels
