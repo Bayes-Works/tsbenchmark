@@ -10,6 +10,9 @@ import os
 from tsbenchmark.build_dataset import build_dataset
 from tsbenchmark.detector.online.gaussian_naive_online_detector import GaussianNaiveOnlineDetector
 from tsbenchmark.detector.offline.gaussian_naive_offline_detector import GaussianNaiveOfflineDetector
+from tsbenchmark.evaluation_metrics.point_metrics import (
+    auc_pr, auc_roc, f1, fn, fp, precision, recall, tn, tp
+)
 from tsbenchmark.utils import get_num_points_per_year
 
 # Inputs
@@ -69,4 +72,19 @@ anm_labels_pred = {
     }
 }
 
-# Next next step: evaluation metrics to compare the detector's detections with anm_labels
+# Evaluation metrics to compare the detector's detections with anm_labels
+anm_labels_test = {
+    name: {
+        key: anm_labels[name][key][train_len:]
+    }
+}
+anm_scores_pred = {name: {key: detector.scores}}  # scores kept by detect, for the AUCs
+
+# Evaluation metrics on the first series
+labels_test = anm_labels_test[name][key]
+labels_pred = anm_labels_pred[name][key]
+scores_pred = anm_scores_pred[name][key]
+for metric in (tp, tn, fp, fn, precision, recall, f1):
+    print(metric.__name__, metric(labels_test, labels_pred))
+for metric in (auc_roc, auc_pr):
+    print(metric.__name__, metric(labels_test, scores_pred, plot=True))

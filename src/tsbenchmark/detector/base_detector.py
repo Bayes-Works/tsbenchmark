@@ -34,6 +34,7 @@ class BaseDetector(ABC):
             None if data_sampling_freq is None else get_num_points_per_year(data_sampling_freq)
         )
         self.y_train = None  # training part, kept by fit to be drawn in front of y in plots
+        self.scores = None  # scores of the last y given to detect, kept for the metrics
 
     def fit(self, y_train, labels_train=None):
         """Learn from the training part, then tune the threshold if none was given."""
@@ -67,6 +68,7 @@ class BaseDetector(ABC):
         if self.output == "score" and self.threshold is None:
             raise ValueError(f"{self.name} has no threshold: give one or call fit first")
         scores = np.asarray(self.score(y), dtype=float)
+        self.scores = scores
         alarm = scores if self.output == "alarm" else scores > self.threshold
         alarm = np.nan_to_num(alarm).astype(int)
         if plot:
