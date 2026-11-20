@@ -7,7 +7,7 @@ Usage:
 
 import os
 
-from src.tsbenchmark.build_dataset import build_dataset
+from tsbenchmark.build_dataset import build_dataset
 
 # Inputs
 DATA_SAMPLING_FREQ = "weekly"  # "daily", "weekly", "monthly" or "quarterly"

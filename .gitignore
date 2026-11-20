@@ -12,6 +12,7 @@
 data/**
 results/**
 workflow/**
+build/**
 
 # Exception
 !data/anomaly_info/

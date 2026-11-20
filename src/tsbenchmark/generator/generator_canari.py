@@ -16,7 +16,7 @@ import numpy as np
 from canari import Model
 from canari.component import Autoregression, Periodic
 
-from src.tsbenchmark.generator.generator_kernelsynth import calendar_periods
+from tsbenchmark.generator.generator_kernelsynth import calendar_periods
 
 LENGTH = 1024
 PHI_MAX = 0.92  # keeps the AR stationary std <= 2.5 at std_error = 1

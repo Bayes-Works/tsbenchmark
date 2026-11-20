@@ -21,14 +21,15 @@ classifiers = [
 
 dependencies = [
   "matplotlib~=3.9.2",
-  "pycanari",
+  "pycanari~=0.2.5",
+  "prophet~=1.3.0",
   "numpy==1.26.0",
   "pandas~=2.2.3",
   "tqdm==4.66.1",
   "fire==0.5.0",
   "optuna==4.2.0",
   "ray[tune]==2.49.2",
-  "salesforce-merlion[deep-learning]==2.0.4",
+  "salesforce-merlion[deep-learning]==2.0.2",
   "tranad @ git+https://github.com/van-dai-vuong/tranad.git",
 ]
 

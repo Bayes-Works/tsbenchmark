@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from typing import Optional
 from cmdstanpy import disable_logging
-from src.tsbenchmark.detector.base_detector import BaseDetector
+from tsbenchmark.detector.base_detector import BaseDetector
 
 class ProphetDetector(BaseDetector):
     """

@@ -6,7 +6,7 @@ Each generator takes the stationary series ts, the start as a ratio of the serie
 
 import numpy as np
 
-from src.tsbenchmark.generator.generator_anomaly.anomaly_utils import start_index
+from tsbenchmark.generator.generator_anomaly.anomaly_utils import start_index
 
 
 def trend_anomaly_gen(

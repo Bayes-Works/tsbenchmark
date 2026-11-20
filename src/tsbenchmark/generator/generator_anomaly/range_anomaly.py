@@ -8,7 +8,7 @@ one year; it returns a new array.
 
 import numpy as np
 
-from src.tsbenchmark.generator.generator_anomaly.anomaly_utils import start_index
+from tsbenchmark.generator.generator_anomaly.anomaly_utils import start_index
 
 ANM_NUM_YEARS = 3
 

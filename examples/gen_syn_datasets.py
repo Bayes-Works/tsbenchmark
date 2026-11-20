@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from src.tsbenchmark.generator.generator_canari import canari_gen
-from src.tsbenchmark.generator.generator_kernelsynth import kernel_synth_gen
+from tsbenchmark.generator.generator_canari import canari_gen
+from tsbenchmark.generator.generator_kernelsynth import kernel_synth_gen
 
 
 SAMPLE_FREQUENCY = "W"

@@ -4,17 +4,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from src.tsbenchmark.generator.generator_anomaly.anomaly_utils import start_index
-from src.tsbenchmark.generator.generator_anomaly.point_anomaly import (
+from tsbenchmark.generator.generator_anomaly.anomaly_utils import start_index
+from tsbenchmark.generator.generator_anomaly.point_anomaly import (
     contextual_outlier_gen,
     global_outlier_gen,
 )
-from src.tsbenchmark.generator.generator_anomaly.range_anomaly import (
+from tsbenchmark.generator.generator_anomaly.range_anomaly import (
     noise_anomaly_gen,
     range_window,
     scale_anomaly_gen,
 )
-from src.tsbenchmark.generator.generator_anomaly.regime_anomaly import (
+from tsbenchmark.generator.generator_anomaly.regime_anomaly import (
     level_anomaly_gen,
     trend_anomaly_gen,
 )

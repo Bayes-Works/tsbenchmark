@@ -12,7 +12,7 @@ from typing import Tuple
 
 import numpy as np
 
-from src.tsbenchmark.generator.generator_anomaly.anomaly_utils import start_index
+from tsbenchmark.generator.generator_anomaly.anomaly_utils import start_index
 
 
 def global_outlier_gen(ts, start_ratio: float, mag: float) -> np.ndarray:
