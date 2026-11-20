@@ -3,7 +3,7 @@ AUC-PR."""
 
 import numpy as np
 
-from src.tsbenchmark.evaluation_metrics._utils import area_under_curve, curve, plot_curve
+from tsbenchmark.evaluation_metrics._utils import area_under_curve, curve, plot_curve
 
 
 def tp(anm_labels_test, anm_labels_pred):

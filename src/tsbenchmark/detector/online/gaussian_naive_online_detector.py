@@ -15,7 +15,7 @@ from math import erf, sqrt
 
 import numpy as np
 
-from src.tsbenchmark.detector.base_detector import OnlineDetector
+from tsbenchmark.detector.base_detector import OnlineDetector
 
 
 class GaussianNaiveOnlineDetector(OnlineDetector):

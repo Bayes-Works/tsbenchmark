@@ -18,7 +18,7 @@ from tsbenchmark.generator.generator_anomaly.regime_anomaly import (
     level_anomaly_gen,
     trend_anomaly_gen,
 )
-from src.tsbenchmark.utils import get_num_points_per_year
+from tsbenchmark.utils import get_num_points_per_year
 
 ANM_TYPES = (
     "no_anomaly",

@@ -14,7 +14,7 @@ from math import erf, sqrt
 
 import numpy as np
 
-from src.tsbenchmark.detector.base_detector import OfflineDetector
+from tsbenchmark.detector.base_detector import OfflineDetector
 
 
 class GaussianNaiveOfflineDetector(OfflineDetector):

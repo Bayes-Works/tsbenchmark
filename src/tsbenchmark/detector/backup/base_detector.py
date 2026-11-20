@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from src.tsbenchmark.utils import apply_recursive
+from tsbenchmark.utils import apply_recursive
 
 class BaseDetector(ABC):
     """
