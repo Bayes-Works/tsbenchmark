@@ -36,6 +36,35 @@ def anomaly_start_and_first_detection(labels, alarms, max_delay=np.inf):
     return start, (start + delays[0] if len(delays) and delays[0] <= max_delay else None)
 
 
+def plot_vs_magnitude(values, ylabel, ylim=None):
+    """The values {anomaly magnitude: value} against the magnitude."""
+    fig, ax = plt.subplots(figsize=(5, 4))
+    ax.plot(list(values), list(values.values()), "o-", color="tab:blue")
+    ax.set(xlabel="anomaly magnitude", ylabel=ylabel, ylim=ylim)
+    ax.grid(lw=0.5, color="0.9")
+    fig.tight_layout()
+    plt.show()
+
+
+def plot_surface(curves, y, xlabel, ylabel, zlabel, title):
+    """Surface through the curves [(x, z), ...], one per value of y, with x >= 0 drawn on a
+    log10(1 + x) axis; where a curve has several points at one x, its last one is drawn."""
+    log_x = [np.log10(1 + x) for x, _ in curves]
+    grid = np.linspace(0, max(lx.max() for lx in log_x), 300)
+    Z = []
+    for lx, (_, z) in zip(log_x, curves):
+        lx_unique, last = np.unique(lx[::-1], return_index=True)
+        Z.append(np.interp(grid, lx_unique, z[::-1][last]))
+    X, Y = np.meshgrid(grid, y)
+    fig = plt.figure(figsize=(7, 5.5))
+    ax = fig.add_subplot(projection="3d")
+    ax.plot_surface(X, Y, np.array(Z), cmap="viridis", rcount=len(y), ccount=len(grid))
+    ticks = [t for t in (0, 1, 10, 100, 1000) if np.log10(1 + t) <= grid[-1]]
+    ax.set_xticks(np.log10(1 + np.array(ticks)), ticks)
+    ax.set(xlabel=f"{xlabel} (log scale)", ylabel=ylabel, zlabel=zlabel, title=title)
+    plt.show()
+
+
 def plot_curve(x, y, xlabel, ylabel, title):
     """The curve through the points (x, y), with the area under it shaded."""
     fig, ax = plt.subplots(figsize=(5, 5))
