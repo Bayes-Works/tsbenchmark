@@ -25,6 +25,17 @@ def volume_under_surface(point_fn, labels, scores, param_name, param_values):
     pass
 
 
+def anomaly_start_and_first_detection(labels, alarms, max_delay=np.inf):
+    """Index of the anomaly start (first nonzero label) and of the first alarm at or after it, at
+    most max_delay steps after it; None for what does not exist (no anomaly, or no such alarm)."""
+    anomaly = np.flatnonzero(labels)
+    if len(anomaly) == 0:
+        return None, None
+    start = anomaly[0]
+    delays = np.flatnonzero(alarms[start:])
+    return start, (start + delays[0] if len(delays) and delays[0] <= max_delay else None)
+
+
 def plot_curve(x, y, xlabel, ylabel, title):
     """The curve through the points (x, y), with the area under it shaded."""
     fig, ax = plt.subplots(figsize=(5, 5))

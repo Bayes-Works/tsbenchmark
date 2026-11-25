@@ -7,9 +7,14 @@ Usage:
 
 import os
 
+import numpy as np
+
 from tsbenchmark.build_dataset import build_dataset
 from tsbenchmark.detector.online.gaussian_naive_online_detector import GaussianNaiveOnlineDetector
 from tsbenchmark.detector.offline.gaussian_naive_offline_detector import GaussianNaiveOfflineDetector
+from tsbenchmark.evaluation_metrics.online.regime_online_metrics import (
+    detection_probability, false_alarm_rate, repeated_alarm_rate, time_to_detection
+)
 from tsbenchmark.evaluation_metrics.point_metrics import (
     auc_pr, auc_roc, f1, fn, fp, precision, recall, tn, tp
 )
@@ -56,35 +61,41 @@ stationary_series, series_with_anomaly, anm_labels, anm_start_ratio, anm_mags = 
 
 # Detector
 train_len = NUM_TRAIN_CYCLES * get_num_points_per_year(DATA_SAMPLING_FREQ)
-# detector = GaussianNaiveOnlineDetector(threshold=THRESHOLD)
-detector = GaussianNaiveOfflineDetector(threshold=THRESHOLD)
+detector = GaussianNaiveOnlineDetector(threshold=THRESHOLD)
+# detector = GaussianNaiveOfflineDetector(threshold=THRESHOLD)
 # NOTE: anm_labels_pred only covers the steps after the training part (no prediction there), so
 # it is train_len steps shorter than anm_labels: anm_labels_pred[name][key][i] is the prediction
 # of step train_len + i, to compare with anm_labels[name][key][train_len:].
-# Run only on the first series: the first name and its first (anm_mag, rep) key.
-name = next(iter(series_with_anomaly))
-key, y = next(iter(series_with_anomaly[name].items()))
-anm_labels_pred = {
-    name: {
-        key: detector.fit(y[:train_len]).detect(
-            y[train_len:], plot=True, anm_labels=anm_labels[name][key]
-        )
-    }
-}
+# Run on every series with anomaly: each name and each of its (anm_mag, rep) keys. The detector is
+# refitted on the training part of each series, then detects on the rest.
+anm_labels_pred, anm_labels_test, anm_scores_pred = {}, {}, {}
+for name in series_with_anomaly:
+    anm_labels_pred[name], anm_labels_test[name], anm_scores_pred[name] = {}, {}, {}
+    for key, y in series_with_anomaly[name].items():
+        anm_labels_pred[name][key] = detector.fit(y[:train_len]).detect(y[train_len:])
+        anm_scores_pred[name][key] = detector.scores  # scores kept by detect, for the AUCs
+        anm_labels_test[name][key] = anm_labels[name][key][train_len:]
 
-# Evaluation metrics to compare the detector's detections with anm_labels
-anm_labels_test = {
-    name: {
-        key: anm_labels[name][key][train_len:]
-    }
-}
-anm_scores_pred = {name: {key: detector.scores}}  # scores kept by detect, for the AUCs
+# Regime online metrics over all series with anomaly
+keys = [(name, key) for name in anm_labels_test for key in anm_labels_test[name]]
+labels_test = [anm_labels_test[n][k] for n, k in keys]
+labels_pred = [anm_labels_pred[n][k] for n, k in keys]
+print(f"Regime online metrics over {len(keys)} series:")
+print(
+    "time_to_detection (years)",
+    time_to_detection(labels_test, labels_pred, DATA_SAMPLING_FREQ),
+)
+print(
+    "detection_probability",
+    detection_probability(labels_test, labels_pred, DATA_SAMPLING_FREQ),
+)
+print(
+    "false_alarm_rate (per 10 years)",
+    false_alarm_rate(labels_test, labels_pred, DATA_SAMPLING_FREQ),
+)
+print(
+    "repeated_alarm_rate (per 10 years)",
+    repeated_alarm_rate(labels_test, labels_pred, DATA_SAMPLING_FREQ),
+)
 
-# Evaluation metrics on the first series
-labels_test = anm_labels_test[name][key]
-labels_pred = anm_labels_pred[name][key]
-scores_pred = anm_scores_pred[name][key]
-for metric in (tp, tn, fp, fn, precision, recall, f1):
-    print(metric.__name__, metric(labels_test, labels_pred))
-for metric in (auc_roc, auc_pr):
-    print(metric.__name__, metric(labels_test, scores_pred, plot=True))
+
