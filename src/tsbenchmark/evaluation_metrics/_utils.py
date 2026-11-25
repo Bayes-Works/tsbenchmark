@@ -36,6 +36,13 @@ def anomaly_start_and_first_detection(labels, alarms, max_delay=np.inf):
     return start, (start + delays[0] if len(delays) and delays[0] <= max_delay else None)
 
 
+def events(labels):
+    """Events [start, stop) of the runs of 1 in a 0/1 array, step i being the interval [i, i + 1):
+    an array of shape (number of events, 2)."""
+    edges = np.diff(np.r_[0, np.asarray(labels) > 0, 0].astype(int))
+    return np.c_[np.flatnonzero(edges == 1), np.flatnonzero(edges == -1)]
+
+
 def plot_vs_magnitude(values, ylabel, ylim=None):
     """The values {anomaly magnitude: value} against the magnitude."""
     fig, ax = plt.subplots(figsize=(5, 4))
