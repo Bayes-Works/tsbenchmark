@@ -10,16 +10,7 @@ def affiliation_f1(anm_labels_test, anm_labels_pred, anm_mags, plot=False):
     mean of the affiliation precision and recall; 0 if there is no prediction. plot: draw it
     against the magnitude.
 
-    Each ground-truth event gets the zone of the times closer to it than to any other event. In
-    its zone, each predicted time scores the probability that a random time of the zone is at
-    least as far from the event (Eq. 10), and each event time scores the probability that a
-    random time of the zone is at least as far from it as the nearest prediction (Eq. 11): their
-    means are the zone's precision and recall. Precision: mean over the zones with a prediction;
-    recall: mean over all zones (each event weighs the same), pooled over the series of each
-    magnitude. Early and late predictions at the same distance score the same: it measures how
-    close the predictions are to the events, not how early they come.
-
-    Exact: the integrands are linear on quarter steps, so they are averaged at their midpoints.
+    *** Need verification. ***
     """
     anm_mags = np.asarray(anm_mags)
     f1s = {}

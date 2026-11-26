@@ -7,18 +7,22 @@ from tsbenchmark.evaluation_metrics._utils import area_under_curve, curve, plot_
 
 
 def tp(anm_labels_test, anm_labels_pred):
+    """True possitive count."""
     return np.sum(anm_labels_test * anm_labels_pred)
 
 
 def tn(anm_labels_test, anm_labels_pred):
+    """True negative count."""
     return np.sum((1 - anm_labels_test) * (1 - anm_labels_pred))
 
 
 def fp(anm_labels_test, anm_labels_pred):
+    """False possitive count."""
     return np.sum((1 - anm_labels_test) * anm_labels_pred)
 
 
 def fn(anm_labels_test, anm_labels_pred):
+    """False negative count."""
     return np.sum(anm_labels_test * (1 - anm_labels_pred))
 
 
@@ -38,17 +42,22 @@ def f1(anm_labels_test, anm_labels_pred):
 
 
 def roc_point(anm_labels_test, anm_labels_pred):
+    """Receiver operating characteristic (ROC) point: (false positive rate, true positive rate).
+       It tends to be overly optimistic when the classes are strongly imbalanced"""
     num_normals = np.sum(1 - anm_labels_test)
     fpr = fp(anm_labels_test, anm_labels_pred) / num_normals if num_normals > 0 else np.nan
     return fpr, recall(anm_labels_test, anm_labels_pred)
 
 
 def pr_point(anm_labels_test, anm_labels_pred):
+    """Precision-recall (PR) point: (recall, precision)
+       More informative than ROC when the classes are strongly imbalanced."""
     p = precision(anm_labels_test, anm_labels_pred)
     return recall(anm_labels_test, anm_labels_pred), 1.0 if np.isnan(p) else p  # no alarm: 1
 
 
 def auc_roc(anm_labels_test, anm_scores_pred, plot=False):
+    """Area under the Receiver operating characteristic (ROC) curve."""
     fprs, tprs = curve(roc_point, anm_labels_test, anm_scores_pred)
     auc = area_under_curve(fprs, tprs)
     if plot:
@@ -57,6 +66,7 @@ def auc_roc(anm_labels_test, anm_scores_pred, plot=False):
 
 
 def auc_pr(anm_labels_test, anm_scores_pred, plot=False):
+    """Area under the precision-recall (PR) curve."""
     recalls, precisions = curve(pr_point, anm_labels_test, anm_scores_pred)
     auc = area_under_curve(recalls, precisions)
     if plot:

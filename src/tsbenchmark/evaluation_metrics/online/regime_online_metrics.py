@@ -2,11 +2,9 @@
 
 anm_labels_test, anm_labels_pred: one 0/1 array per series, test part only.
 anm_scores_pred (VUS-AMOC): one score array per series, test part only.
-anm_mags: the anomaly magnitude of each series; the metrics that depend on it are given per
-magnitude (time to detection, detection probability) or integrated over it (VUS-AMOC).
-Detection: the first alarm at or after the anomaly start, within max_time_to_detection years
-(np.inf = no maximum); from then on the new regime is normal.
-Rates are pooled (alarms and times summed over the series, then divided); NaN if nothing to divide.
+anm_mags: the anomaly magnitude of each series.
+Detection: the first alarm at or after the anomaly start, within max_time_to_detection years; 
+           from then on the new regime is normal.
 """
 
 import numpy as np
@@ -28,12 +26,11 @@ def time_to_detection(
     max_time_to_detection=5,
     plot=False,
 ):
-    """Mean years from the anomaly start to its detection, over the detected series of each
-    magnitude: {magnitude: years}. plot: draw it against the magnitude."""
+    """Years from the anomaly start to its detection."""
     num_points_per_year = get_num_points_per_year(data_sampling_freq)
     max_delay = max_time_to_detection * num_points_per_year
     anm_mags = np.asarray(anm_mags)
-    years = {}
+    years, years_std = {}, {}
     for mag in np.unique(anm_mags):
         delays = []
         for i in np.flatnonzero(anm_mags == mag):
@@ -43,8 +40,9 @@ def time_to_detection(
             if first_detection is not None:
                 delays.append(first_detection - start)
         years[float(mag)] = float(np.mean(delays)) / num_points_per_year if delays else np.nan
+        years_std[float(mag)] = float(np.std(delays)) / num_points_per_year if delays else np.nan
     if plot:
-        plot_vs_magnitude(years, "time to detection (years)", ylim=(0, None))
+        plot_vs_magnitude(years, "time to detection (years)", ylim=(0, None), std=years_std)
     return years
 
 
@@ -56,8 +54,7 @@ def detection_probability(
     max_time_to_detection=5,
     plot=False,
 ):
-    """Proportion of the series where the anomaly is detected, for each magnitude:
-    {magnitude: probability}. plot: draw it against the magnitude."""
+    """Proportion of the series where the anomaly is detected."""
     max_delay = max_time_to_detection * get_num_points_per_year(data_sampling_freq)
     anm_mags = np.asarray(anm_mags)
     probabilities = {}
@@ -76,8 +73,7 @@ def detection_probability(
 
 
 def false_alarm_rate(anm_labels_test, anm_labels_pred, data_sampling_freq):
-    """False alarms per 10 years: alarms before the anomaly start / test time before it (the
-    whole test part if no anomaly)."""
+    """False alarms per 10 years: alarms before the anomaly start / test time before it."""
     num_false_alarms, num_steps = 0, 0
     for labels, alarms in zip(anm_labels_test, anm_labels_pred):
         start, _ = anomaly_start_and_first_detection(labels, alarms)
@@ -92,8 +88,7 @@ def false_alarm_rate(anm_labels_test, anm_labels_pred, data_sampling_freq):
 def repeated_alarm_rate(
     anm_labels_test, anm_labels_pred, data_sampling_freq, max_time_to_detection=5
 ):
-    """Repeated alarms per 10 years: alarms after the detection / time from the detection to the
-    end, over the detected series."""
+    """Repeated alarms per 10 years: alarms after the detection / time from the detection to the end."""
     num_points_per_year = get_num_points_per_year(data_sampling_freq)
     max_delay = max_time_to_detection * num_points_per_year
     num_repeated_alarms, num_steps = 0, 0
@@ -121,19 +116,10 @@ def vus_amoc(
     reported separately.
 
     anm_mags: the magnitude of each series, one AMOC curve per distinct value. Each curve sweeps
-    the threshold (alarms = scores > threshold) over every distinct score, then -inf: from no
-    alarm (0 false alarms, all missed) to an alarm at every scored step. The trapezoid areas of
-    the curves are then integrated over the magnitudes.
-
-    plot: draw the surface, with the false alarms on a log10(1 + x) axis for readability (the
-    volume is computed on the linear axis).
+    the threshold over every distinct score from no alarm to an alarm at every scored step. 
 
     Limitations:
-    - the scores must not depend on the threshold, so one detector run gives every threshold: not
-      for "alarm" detectors, nor for detectors whose state depends on their own alarms;
-    - every series must contain an anomaly, and at least two magnitudes are needed;
-    - NaN scores never alarm, so some NaN scores before the anomaly start end the false alarm
-      axis below 10 * points per year.
+    - the scores must not depend on the threshold.
     """
     num_points_per_year = get_num_points_per_year(data_sampling_freq)
     max_delay = int(max_time_to_detection * num_points_per_year)

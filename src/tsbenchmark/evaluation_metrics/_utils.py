@@ -20,11 +20,6 @@ def area_under_curve(x, y):
     return np.sum(np.diff(x) * (y[1:] + y[:-1]) / 2)
 
 
-def volume_under_surface(point_fn, labels, scores, param_name, param_values):
-    """Area under the curve of point_fn for each value of param_name, averaged."""
-    pass
-
-
 def anomaly_start_and_first_detection(labels, alarms, max_delay=np.inf):
     """Index of the anomaly start (first nonzero label) and of the first alarm at or after it, at
     most max_delay steps after it; None for what does not exist (no anomaly, or no such alarm)."""
@@ -38,15 +33,21 @@ def anomaly_start_and_first_detection(labels, alarms, max_delay=np.inf):
 
 def events(labels):
     """Events [start, stop) of the runs of 1 in a 0/1 array, step i being the interval [i, i + 1):
-    an array of shape (number of events, 2)."""
+    an array of shape (number of events, 2). Function intended for the F1 affiliation metric."""
     edges = np.diff(np.r_[0, np.asarray(labels) > 0, 0].astype(int))
     return np.c_[np.flatnonzero(edges == 1), np.flatnonzero(edges == -1)]
 
 
-def plot_vs_magnitude(values, ylabel, ylim=None):
-    """The values {anomaly magnitude: value} against the magnitude."""
+def plot_vs_magnitude(values, ylabel, ylim=None, std=None):
+    """The target values (+/- 1 std) against the magnitude."""
+    mags, mean = np.array(list(values)), np.array(list(values.values()))
     fig, ax = plt.subplots(figsize=(5, 4))
-    ax.plot(list(values), list(values.values()), "o-", color="tab:blue")
+    ax.plot(mags, mean, "o-", color="tab:blue", label="mean" if std else None)
+    if std:
+        s = np.array([std[mag] for mag in values])
+        ax.fill_between(
+            mags, mean - s, mean + s, color="tab:blue", alpha=0.2, lw=0, label="± 1 std"
+        )
     ax.set(xlabel="anomaly magnitude", ylabel=ylabel, ylim=ylim)
     ax.grid(lw=0.5, color="0.9")
     fig.tight_layout()
@@ -54,8 +55,7 @@ def plot_vs_magnitude(values, ylabel, ylim=None):
 
 
 def plot_surface(curves, y, xlabel, ylabel, zlabel, title):
-    """Surface through the curves [(x, z), ...], one per value of y, with x >= 0 drawn on a
-    log10(1 + x) axis; where a curve has several points at one x, its last one is drawn."""
+    """Surface through the curves [(x, z), ...]."""
     log_x = [np.log10(1 + x) for x, _ in curves]
     grid = np.linspace(0, max(lx.max() for lx in log_x), 300)
     Z = []
