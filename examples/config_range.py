@@ -17,7 +17,7 @@ from tsbenchmark.evaluation_metrics.online.regime_online_metrics import (
 from tsbenchmark.evaluation_metrics.point_metrics import (
     auc_pr, auc_roc, f1, fn, fp, precision, recall, tn, tp
 )
-from tsbenchmark.utils import get_num_points_per_year
+from tsbenchmark.utils import get_num_points_per_year, save_outputs
 
 # Inputs
 # Define anomalies, load time series and anomalies
@@ -34,6 +34,8 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 TS_PATH = os.path.join(DATA_DIR, "synthetic", "syn_values.csv")
 # TS_PATH = os.path.join(DATA_DIR, "real100", "weekly_values.csv")
 ANM_LOC_PATH = os.path.join(DATA_DIR, "anomaly_info", "anm_single_location.csv")
+RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "results")
+OUTPUT_PATH = os.path.join(RESULTS_DIR, "config_range_outputs.json")
 stationary_series, series_with_anomaly, anm_labels, anm_start_ratio, anm_mags = build_dataset(
     TS_PATH,
     ANM_LOC_PATH,
@@ -59,6 +61,11 @@ for name in series_with_anomaly:
         anm_labels_test[name][key] = anm_labels[name][key][train_len:]
 
 
+# Save results for comparison between different configs
+save_outputs(OUTPUT_PATH, anm_labels_pred, anm_scores_pred, anm_labels_test)
+
+
+# Evaluation
 # Range offline metrics over all series with anomaly
 keys = [(name, key) for name in anm_labels_test for key in anm_labels_test[name]]
 labels_test = [anm_labels_test[n][k] for n, k in keys]

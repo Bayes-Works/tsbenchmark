@@ -1,3 +1,7 @@
+import json
+import math
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -13,6 +17,30 @@ def get_num_points_per_year(data_sampling_freq):
             f"choose one of {tuple(NUM_POINTS_PER_YEAR)}"
         )
     return NUM_POINTS_PER_YEAR[data_sampling_freq]
+
+
+def save_outputs(path, anm_labels_pred, anm_scores_pred, anm_labels_test):
+    """Save the outputs, each {series name: {(anm_mag, rep): array}}, to the json file path as
+    {output: {series name: {"(anm_mag, rep)": list}}}; NaN is saved as null."""
+    outputs = {
+        "anm_labels_pred": anm_labels_pred,
+        "anm_scores_pred": anm_scores_pred,
+        "anm_labels_test": anm_labels_test,
+    }
+    outputs = {
+        output: {
+            name: {
+                str((float(mag), rep)): [None if math.isnan(v) else v for v in values.tolist()]
+                for (mag, rep), values in series.items()
+            }
+            for name, series in data.items()
+        }
+        for output, data in outputs.items()
+    }
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    with open(path, "w") as file:
+        json.dump(outputs, file)
+    print(f"Saved the outputs to {os.path.normpath(path)}")
 
 
 def apply_recursive(data, fn, **kwargs):
