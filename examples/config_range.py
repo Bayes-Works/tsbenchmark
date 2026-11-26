@@ -1,26 +1,20 @@
-"""Dummy config: apply anomalies of type ANM_TYPE to stationary series (see
-src/tsbenchmark/build_dataset.py).
+"""Range anomaly benchmark: inject ANM_TYPE anomalies into stationary series, run
+the Gaussian naive offline detector, save its outputs to OUTPUT_PATH, and report
+evaluation metrics.
 
 Usage:
-    python -m examples.config_dummy
+    python -m examples.config_range
 """
 
 import os
 
 from tsbenchmark.build_dataset import build_dataset
-from tsbenchmark.detector.online.gaussian_naive_online_detector import GaussianNaiveOnlineDetector
 from tsbenchmark.detector.offline.gaussian_naive_offline_detector import GaussianNaiveOfflineDetector
 from tsbenchmark.evaluation_metrics.offline.range_offline_metrics import affiliation_f1
-from tsbenchmark.evaluation_metrics.online.regime_online_metrics import (
-    detection_probability, false_alarm_rate, repeated_alarm_rate, time_to_detection, vus_amoc
-)
-from tsbenchmark.evaluation_metrics.point_metrics import (
-    auc_pr, auc_roc, f1, fn, fp, precision, recall, tn, tp
-)
 from tsbenchmark.utils import get_num_points_per_year, save_outputs
 
 # Inputs
-# Define anomalies, load time series and anomalies
+# Define anomalies and time series info
 ANM_TYPE = "noise_range"
 ANM_MAG_LIST = [0.2, 0.4, 0.6, 0.8, 1.0]  # absolute values, mirrored to both signs (not noise)
 ANM_START_RANGE = (0.3, 0.6)  # allowed anm_start_ratio
@@ -36,6 +30,9 @@ TS_PATH = os.path.join(DATA_DIR, "synthetic", "syn_values.csv")
 ANM_LOC_PATH = os.path.join(DATA_DIR, "anomaly_info", "anm_single_location.csv")
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "results")
 OUTPUT_PATH = os.path.join(RESULTS_DIR, "config_range_outputs.json")
+
+
+# Load time series and anomalies
 stationary_series, series_with_anomaly, anm_labels, anm_start_ratio, anm_mags = build_dataset(
     TS_PATH,
     ANM_LOC_PATH,
@@ -47,6 +44,7 @@ stationary_series, series_with_anomaly, anm_labels, anm_start_ratio, anm_mags = 
     num_series=NUM_SERIES,
     plot_dataset=PLOT_DATASET,
 )
+
 
 # Detector
 train_len = NUM_TRAIN_CYCLES * get_num_points_per_year(DATA_SAMPLING_FREQ)

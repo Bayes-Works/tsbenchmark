@@ -1,11 +1,5 @@
-"""Regime x Online metrics, over a set of test series.
-
-anm_labels_test, anm_labels_pred: one 0/1 array per series, test part only.
-anm_scores_pred (VUS-AMOC): one score array per series, test part only.
-anm_mags: the anomaly magnitude of each series.
-Detection: the first alarm at or after the anomaly start, within max_time_to_detection years; 
-           from then on the new regime is normal.
-"""
+"""Regime x Online metrics, over a set of test series: false_alarm_rate, repeated_alarm_rate, 
+time_to_detection, detection_probability, vus_amoc."""
 
 import numpy as np
 
